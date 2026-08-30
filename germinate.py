@@ -1,222 +1,92 @@
-"""Small, transparent prototype for discovering possible grant opportunities."""
-
-from __future__ import annotations
-
-import argparse
-import csv
-import json
-import sys
-from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
-from html.parser import HTMLParser
+"""Germinate: collect, pre-filter, optionally analyze, and export grant opportunities."""
+import argparse,csv,json,sys
+from dataclasses import asdict,dataclass
+from datetime import datetime,timezone
 from pathlib import Path
-from typing import Iterable
-from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin
-from urllib.request import Request, urlopen
-
-
-ROOT = Path(__file__).resolve().parent
-
-
-@dataclass
-class Link:
-    title: str
-    url: str
-
+from urllib.error import HTTPError,URLError
+from agent.client import OpenAIAgent
+from collectors.html import Link,extract_links,extract_text,fetch_html
+from collectors.interactive import limitation_note
+ROOT=Path(__file__).resolve().parent
 
 @dataclass
 class Result:
-    source: str
-    collector_type: str
-    title: str
-    url: str
-    decision: str
-    score: int
-    matched_grant_terms: str
-    matched_topics: str
-    rejection_terms: str
-    checked_at: str
-    note: str
+    source:str; collector_type:str; title:str; url:str; decision:str; score:int
+    matched_grant_terms:str; matched_topics:str; rejection_terms:str; checked_at:str; note:str
+    agent_used:bool=False; agent_decision:str=""; agent_confidence:str=""; grant_status:str=""
+    deadline:str=""; amount_min:str=""; amount_max:str=""; currency:str=""
+    eligible_countries:str=""; eligible_applicants:str=""; topics:str=""; consortium_required:str=""; agent_reason:str=""
 
+def load_json(path): return json.loads(Path(path).read_text(encoding="utf-8-sig"))
+def find_terms(text,terms):
+    lowered=text.casefold(); return sorted({term for term in terms if term.casefold() in lowered})
 
-class LinkParser(HTMLParser):
-    """Extract visible anchor text and URLs from ordinary HTML."""
+def classify(link,source,rules,checked_at):
+    searchable=f"{link.title} {link.url}"; grants=find_terms(searchable,rules["grant_terms"])
+    topics=find_terms(searchable,rules["topic_terms"]); rejected=find_terms(searchable,rules["rejection_terms"])
+    if not grants and not topics and not rejected: return None
+    score=len(grants)*2+len(topics)-len(rejected)*4
+    if rejected: decision,note="rejected","Contains an excluded financing or procurement term."
+    elif grants and topics and score>=rules["minimum_score"]: decision,note="candidate","Relevant under preliminary rules; full-page verification remains."
+    else: decision,note="review","Grant type or thematic fit is incomplete."
+    return Result(source["name"],source["collector_type"],link.title,link.url,decision,score,"; ".join(grants),"; ".join(topics),"; ".join(rejected),checked_at,note)
 
-    def __init__(self, base_url: str) -> None:
-        super().__init__(convert_charrefs=True)
-        self.base_url = base_url
-        self.links: list[Link] = []
-        self._href: str | None = None
-        self._text: list[str] = []
-        self._ignored_depth = 0
+def inspect_html(html,base_url,source,rules,checked_at):
+    return [r for link in extract_links(html,base_url) if (r:=classify(link,source,rules,checked_at))]
 
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in {"script", "style", "noscript"}:
-            self._ignored_depth += 1
-            return
-        if tag == "a" and self._ignored_depth == 0:
-            self._href = dict(attrs).get("href")
-            self._text = []
+def run_demo(rules,checked_at):
+    html=(ROOT/"demo"/"sample_source.html").read_text(encoding="utf-8")
+    return inspect_html(html,"https://example.org/funding/",{"name":"Demo Environmental Fund","collector_type":"html"},rules,checked_at)
 
-    def handle_data(self, data: str) -> None:
-        if self._href and self._ignored_depth == 0:
-            self._text.append(data)
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag in {"script", "style", "noscript"} and self._ignored_depth:
-            self._ignored_depth -= 1
-            return
-        if tag == "a" and self._href:
-            title = " ".join(" ".join(self._text).split())
-            href = self._href.strip()
-            if title and href and not href.startswith(("#", "mailto:", "javascript:")):
-                self.links.append(Link(title=title, url=urljoin(self.base_url, href)))
-            self._href = None
-            self._text = []
-
-
-def load_json(path: Path):
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
-
-
-def fetch_html(url: str, timeout: int = 25) -> str:
-    request = Request(
-        url,
-        headers={
-            "User-Agent": "GerminateGrantMonitor/0.1 (+manual prototype)",
-            "Accept": "text/html,application/xhtml+xml",
-        },
-    )
-    with urlopen(request, timeout=timeout) as response:
-        content_type = response.headers.get_content_type()
-        if content_type not in {"text/html", "application/xhtml+xml"}:
-            raise ValueError(f"unsupported content type: {content_type}")
-        charset = response.headers.get_content_charset() or "utf-8"
-        return response.read().decode(charset, errors="replace")
-
-
-def find_terms(text: str, terms: Iterable[str]) -> list[str]:
-    lowered = text.casefold()
-    return sorted({term for term in terms if term.casefold() in lowered})
-
-
-def classify(link: Link, source: dict, rules: dict, checked_at: str) -> Result | None:
-    searchable = f"{link.title} {link.url}"
-    grants = find_terms(searchable, rules["grant_terms"])
-    topics = find_terms(searchable, rules["topic_terms"])
-    rejected = find_terms(searchable, rules["rejection_terms"])
-    if not grants and not topics and not rejected:
-        return None
-
-    score = len(grants) * 2 + len(topics) - len(rejected) * 4
-    if rejected:
-        decision = "rejected"
-        note = "Contains an excluded financing or procurement term."
-    elif grants and topics and score >= rules["minimum_score"]:
-        decision = "candidate"
-        note = "Looks relevant; human verification is still required."
-    else:
-        decision = "review"
-        note = "Grant type or thematic fit is incomplete."
-
-    if source["collector_type"] == "interactive_search":
-        decision = "needs_specialized_collector"
-        note = "Interactive search cannot be enumerated reliably by this simple HTML version."
-
-    return Result(
-        source=source["name"], collector_type=source["collector_type"],
-        title=link.title, url=link.url, decision=decision, score=score,
-        matched_grant_terms="; ".join(grants), matched_topics="; ".join(topics),
-        rejection_terms="; ".join(rejected), checked_at=checked_at, note=note,
-    )
-
-
-def inspect_html(html: str, base_url: str, source: dict, rules: dict, checked_at: str) -> list[Result]:
-    parser = LinkParser(base_url)
-    parser.feed(html)
-    unique: dict[str, Link] = {}
-    for link in parser.links:
-        unique.setdefault(link.url, link)
-    return [result for link in unique.values()
-            if (result := classify(link, source, rules, checked_at)) is not None]
-
-
-def run_demo(rules: dict, checked_at: str) -> list[Result]:
-    source = {"name": "Demo Environmental Fund", "collector_type": "html"}
-    url = "https://example.org/funding/"
-    html = (ROOT / "demo" / "sample_source.html").read_text(encoding="utf-8")
-    return inspect_html(html, url, source, rules, checked_at)
-
-
-def run_live(sources: list[dict], rules: dict, checked_at: str) -> tuple[list[Result], list[str]]:
-    results: list[Result] = []
-    errors: list[str] = []
+def run_live(sources,rules,checked_at):
+    results,errors=[],[]
     for source in sources:
-        print(f"Checking {source['name']}...", flush=True)
-        if source["collector_type"] == "interactive_search":
-            results.append(Result(
-                source=source["name"], collector_type=source["collector_type"],
-                title="Specialized collector required", url=source["start_urls"][0],
-                decision="needs_specialized_collector", score=0,
-                matched_grant_terms="", matched_topics="", rejection_terms="",
-                checked_at=checked_at,
-                note="This interactive portal needs browser automation or a public API in the next version.",
-            ))
-            continue
+        print(f"Checking {source['name']}...",flush=True)
+        if source["collector_type"]=="interactive_search":
+            results.append(Result(source["name"],source["collector_type"],"Specialized collector required",source["start_urls"][0],"needs_specialized_collector",0,"","","",checked_at,limitation_note())); continue
         for url in source["start_urls"]:
-            try:
-                results.extend(inspect_html(fetch_html(url), url, source, rules, checked_at))
-            except (HTTPError, URLError, TimeoutError, ValueError) as exc:
-                errors.append(f"{source['name']} | {url} | {exc}")
-    return results, errors
+            try: results.extend(inspect_html(fetch_html(url),url,source,rules,checked_at))
+            except (HTTPError,URLError,TimeoutError,ValueError) as exc: errors.append(f"{source['name']} | {url} | {exc}")
+    return results,errors
 
-
-def deduplicate(results: list[Result]) -> list[Result]:
-    """Keep one record per source and destination URL."""
-    unique: dict[tuple[str, str], Result] = {}
+def enrich(results,agent_config):
+    agent=OpenAIAgent(agent_config); used=0; errors=[]
     for result in results:
-        key = (result.source.casefold(), result.url.casefold())
-        existing = unique.get(key)
-        if existing is None or result.score > existing.score:
-            unique[key] = result
+        if result.decision not in {"candidate","review"} or used>=agent_config["max_pages_per_run"]: continue
+        try:
+            page_text=extract_text(fetch_html(result.url))
+            answer=agent.analyze(source=result.source,url=result.url,page_text=page_text,preliminary={"decision":result.decision,"score":result.score})
+            used+=1; result.agent_used=True; result.agent_decision=answer["decision"]; result.agent_confidence=str(answer["confidence"])
+            result.grant_status=answer["grant_status"]; result.deadline=answer["deadline"] or ""; result.amount_min=answer["amount_min"] or ""
+            result.amount_max=answer["amount_max"] or ""; result.currency=answer["currency"] or ""
+            result.eligible_countries="; ".join(answer["eligible_countries"]); result.eligible_applicants="; ".join(answer["eligible_applicants"])
+            result.topics="; ".join(answer["topics"]); result.consortium_required=str(answer["consortium_required"] or "")
+            result.agent_reason=answer["decision_reason"]
+            if answer["confidence"]<agent_config["minimum_confidence"]: result.agent_decision="review"
+        except Exception as exc: errors.append(f"Agent | {result.url} | {exc}")
+    return errors
+
+def deduplicate(results):
+    unique={}
+    for result in results:
+        key=(result.source.casefold(),result.url.casefold())
+        if key not in unique or result.score>unique[key].score: unique[key]=result
     return list(unique.values())
 
+def write_csv(results,output_path):
+    output_path.parent.mkdir(parents=True,exist_ok=True)
+    with output_path.open("w",newline="",encoding="utf-8-sig") as handle:
+        writer=csv.DictWriter(handle,fieldnames=list(Result.__dataclass_fields__)); writer.writeheader(); writer.writerows(asdict(r) for r in results)
 
-def write_csv(results: list[Result], output_path: Path) -> None:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fields = list(Result.__dataclass_fields__)
-    with output_path.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(asdict(result) for result in results)
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Find possible Germinate grant opportunities.")
-    parser.add_argument("--demo", action="store_true", help="Use sample HTML; no internet required.")
-    parser.add_argument("--output", type=Path, default=ROOT / "output" / "opportunities.csv")
-    args = parser.parse_args()
-    rules = load_json(ROOT / "config" / "rules.json")
-    sources = load_json(ROOT / "config" / "sources.json")
-    checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    results, errors = (run_demo(rules, checked_at), []) if args.demo else run_live(sources, rules, checked_at)
-    results = deduplicate(results)
-    write_csv(results, args.output)
-
-    print(f"\nSaved {len(results)} records to {args.output}")
-    counts: dict[str, int] = {}
-    for result in results:
-        counts[result.decision] = counts.get(result.decision, 0) + 1
-    for decision, count in sorted(counts.items()):
-        print(f"  {decision}: {count}")
-    if errors:
-        print("\nSources with errors:", file=sys.stderr)
-        for error in errors:
-            print(f"  {error}", file=sys.stderr)
+def main():
+    parser=argparse.ArgumentParser(); parser.add_argument("--demo",action="store_true"); parser.add_argument("--agent",action="store_true")
+    parser.add_argument("--output",type=Path,default=ROOT/"output"/"opportunities.csv"); args=parser.parse_args()
+    rules=load_json(ROOT/"config"/"rules.json"); sources=load_json(ROOT/"config"/"sources.json"); config=load_json(ROOT/"config"/"agent.json")
+    checked=datetime.now(timezone.utc).isoformat(timespec="seconds")
+    results,errors=(run_demo(rules,checked),[]) if args.demo else run_live(sources,rules,checked)
+    results=deduplicate(results)
+    if args.agent or config["enabled"]: errors.extend(enrich(results,config))
+    write_csv(results,args.output); print(f"Saved {len(results)} records to {args.output}")
+    for error in errors: print(error,file=sys.stderr)
     return 0 if results else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__=="__main__": raise SystemExit(main())

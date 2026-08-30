@@ -1,0 +1,14 @@
+{
+  "type":"object","additionalProperties":false,
+  "properties":{
+    "title":{"type":"string"},"grant_status":{"type":"string","enum":["confirmed","rejected","unclear"]},
+    "decision":{"type":"string","enum":["accept","review","reject"]},"decision_reason":{"type":"string"},
+    "deadline":{"type":["string","null"]},"rolling_application":{"type":"boolean"},
+    "amount_min":{"type":["number","null"]},"amount_max":{"type":["number","null"]},"currency":{"type":["string","null"]},
+    "eligible_countries":{"type":"array","items":{"type":"string"}},"eligible_applicants":{"type":"array","items":{"type":"string"}},
+    "topics":{"type":"array","items":{"type":"string"}},"consortium_required":{"type":["boolean","null"]},
+    "confidence":{"type":"number","minimum":0,"maximum":1},
+    "evidence":{"type":"object","additionalProperties":false,"properties":{"grant_type":{"type":["string","null"]},"deadline":{"type":["string","null"]},"eligibility":{"type":["string","null"]}},"required":["grant_type","deadline","eligibility"]}
+  },
+  "required":["title","grant_status","decision","decision_reason","deadline","rolling_application","amount_min","amount_max","currency","eligible_countries","eligible_applicants","topics","consortium_required","confidence","evidence"]
+}

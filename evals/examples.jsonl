@@ -1,0 +1,3 @@
+{"id":"clear_grant","input":{"text":"Non-repayable grants for local organizations restoring wetlands. Applications close 30 November 2026."},"expected":{"grant_status":"confirmed","decision":"accept"}}
+{"id":"excluded_loan","input":{"text":"Low-interest loans for sustainable farms, repayable over five years."},"expected":{"grant_status":"rejected","decision":"reject"}}
+{"id":"unclear_funding","input":{"text":"Support programme for community food initiatives. Contact us to learn about available finance."},"expected":{"grant_status":"unclear","decision":"review"}}

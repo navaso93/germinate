@@ -1,0 +1,9 @@
+{
+  "enabled": false,
+  "model": "gpt-5.6-luna",
+  "minimum_confidence": 0.8,
+  "max_pages_per_run": 25,
+  "max_page_characters": 30000,
+  "max_output_tokens": 1600,
+  "timeout_seconds": 60
+}

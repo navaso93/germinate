@@ -1,100 +1,101 @@
-# Germinate grant monitor — first prototype
+# Germinate grant monitor
 
-This repository is the smallest useful version of the Germinate workflow. It:
+Germinate collects links from funding websites, applies inexpensive transparent rules, and can optionally ask an OpenAI model to verify and structure promising opportunities.
 
-1. reads a list of funding sources;
-2. downloads ordinary HTML pages;
-3. extracts their links;
-4. applies visible keyword rules;
-5. writes possible opportunities to a CSV file.
-
-It deliberately does **not** use OpenAI, Google Sheets, browser automation, a database, hosting, or scheduling yet. Those will be added after this basic flow is understood and verified.
-
-## Architecture
+## How information moves
 
 ```text
-config/sources.json       Which websites to check
-          ↓
-germinate.py              Downloads and reads each page
-          ↓
-config/rules.json         Scores, accepts, reviews or rejects links
-          ↓
-output/opportunities.csv  Results for a person to inspect
+config/sources.json → collectors → config/rules.json → optional OpenAI agent → output CSV
+                                      ↓
+                              only candidate/review pages
 ```
 
-The future OpenAI agent will sit between page extraction and the final decision. It will read the relevant page and return a structured grant record.
+The **application/agent lives on the computer that runs this repository**. It is not hosted yet. The collectors communicate with funding sites over HTTPS. When enabled, `agent/client.py` communicates with OpenAI's Responses API over HTTPS. The final CSV remains local.
 
-## Run the offline demonstration
+## Repository structure
 
-From this directory:
+- `germinate.py` — coordinates the complete workflow.
+- `collectors/html.py` — downloads ordinary HTML, extracts links, and converts a page to text.
+- `collectors/interactive.py` — explicit placeholder for dynamic sites requiring an API or browser automation.
+- `config/sources.json` — sites, start URLs, and collector types.
+- `config/rules.json` — visible first-pass grant, topic, and exclusion terms.
+- `agent/client.py` — optional OpenAI Responses API connection.
+- `agent/prompt.md` — Germinate's semantic selection policy.
+- `agent/schema.json` — exact fields and allowed values the model must return.
+- `config/agent.json` — model, confidence threshold, page/call limits, and timeouts.
+- `evals/examples.jsonl` — human-labelled examples used to test future changes.
+- `tests/` — automated code checks that do not call OpenAI.
+- `output/` — generated CSV snapshots; CSV files are intentionally not committed.
+- `.env.example` — safe template for local secrets. The real `.env` is ignored by Git.
+
+## Run it
+
+Offline demonstration, with no internet or API cost:
 
 ```powershell
 .\run-demo.ps1
 ```
 
-Open `output/opportunities.csv`. The demo contains one relevant restoration grant, one loan that must be rejected, and one irrelevant link that must be ignored.
-
-## Run against the live sources
+Live collection using deterministic rules only:
 
 ```powershell
 .\run-live.ps1
 ```
 
-Live behavior depends on the websites and your internet connection. The Spanish Subventions Portal and EU Rural Toolkit are interactive applications; this version marks them as needing specialized collectors rather than pretending their initial HTML is complete.
-
-Every run replaces `output/opportunities.csv` with a new snapshot. It does not append to the previous file. This avoids accumulating duplicate and outdated results. A later version can keep historical runs in a database or a separate history table.
-
-## Output columns
-
-| Column | Meaning |
-| --- | --- |
-| `source` | Funding website where the link was found. |
-| `collector_type` | Collection method assigned to the source, currently `html` or `interactive_search`. |
-| `title` | Visible text of the link found on the source page. It is not yet a verified opportunity title. |
-| `url` | Destination of the extracted link. |
-| `decision` | Rule-based result: `candidate`, `review`, `rejected`, or `needs_specialized_collector`. |
-| `score` | Simple keyword score: grant terms add 2 points, topic terms add 1, and rejection terms subtract 4. |
-| `matched_grant_terms` | Grant-related words detected in the link title or URL. |
-| `matched_topics` | Sustainability-related words detected in the link title or URL. |
-| `rejection_terms` | Words such as `loan`, `equity`, or `procurement` that triggered rejection. |
-| `checked_at` | UTC date and time when the collector ran. |
-| `note` | Human-readable explanation of the decision or collector limitation. |
-
-This first version classifies only the visible link text and URL. It does not yet open every candidate page to understand its complete content, confirm deadlines, or verify eligibility.
-
-## How decisions are currently made
-
-There is no AI agent in this version. `germinate.py` reads the editable terms in `config/rules.json` and applies this transparent formula:
-
-```text
-grant term       +2 points
-relevant topic   +1 point
-rejection term   -4 points
-```
-
-- A grant term plus a relevant topic with a sufficient score becomes `candidate`.
-- A rejection term such as `loan` makes the result `rejected`.
-- Partial evidence becomes `review`.
-- Interactive portals become `needs_specialized_collector`.
-
-## Run the tests
+Live collection plus agent analysis:
 
 ```powershell
-python -m unittest discover -s tests -v
+Copy-Item .env.example .env
+# Edit .env and replace the placeholder with your real key
+.\run-live.ps1 -Agent
 ```
 
-## What to inspect first
+Create an API key in the [OpenAI API key dashboard](https://platform.openai.com/api-keys). Put only this in the uncommitted `.env`:
 
-- `config/sources.json` — the five pilot sources and collector types.
-- `config/rules.json` — Germinate's visible filtering rules.
-- `germinate.py` — the complete workflow in one readable file.
-- `output/opportunities.csv` — what the workflow produces.
+```dotenv
+OPENAI_API_KEY=your_real_key
+```
 
-## Next version
+An API subscription is billed separately from a ChatGPT subscription. Never paste a key into source code or commit `.env`; use a secret manager when this is eventually hosted.
 
-1. Follow candidate links and extract full opportunity pages.
-2. Add deadline detection and duplicate prevention.
-3. Add specialized collectors for interactive portals.
-4. Add OpenAI structured classification.
-5. Connect Google Sheets.
-6. Host and schedule the application.
+## What controls the results?
+
+1. `sources.json` controls **where** Germinate searches.
+2. Each collector controls **how** a source is read.
+3. `rules.json` cheaply controls which links reach full-page analysis.
+4. `prompt.md` explains what Germinate considers an acceptable grant.
+5. `schema.json` controls the exact structured output.
+6. `agent.json` controls the model, confidence cutoff, maximum pages per run, text size, output size, and timeout.
+7. `examples.jsonl` records expected decisions so tuning can be measured rather than guessed.
+
+Low-confidence model answers are changed to `review`. The rule result remains in the CSV beside the agent result so decisions are auditable. Each run **replaces** its output file with a fresh snapshot; it does not append.
+
+## Output
+
+The original columns (`source`, `collector_type`, `title`, `url`, `decision`, `score`, matched terms, `checked_at`, and `note`) show the collector/rule result. Agent columns record whether AI was used, its decision and confidence, grant status, deadline, amount, currency, eligibility, topics, consortium requirement, and reason.
+
+## “Fine-tuning” the agent
+
+For now, tune behavior in this order:
+
+- Edit `rules.json` when pages are incorrectly included/excluded before AI.
+- Edit `prompt.md` when the model misunderstands Germinate's policy.
+- Edit `schema.json` when you need different output fields.
+- Edit thresholds and limits in `agent.json`.
+- Add real labelled cases to `evals/examples.jsonl`, then run comparisons after every change.
+
+This is **prompt/configuration tuning**, not model fine-tuning. Actual fine-tuning changes model weights using a much larger reviewed dataset and should come later, only if evals show that prompting and structured outputs are insufficient.
+
+## Is this RAG?
+
+It is **RAG-like, but not classic RAG**. The model is grounded in text retrieved from live websites, so the broad idea is similar. Classic RAG normally stores documents in a searchable index (often embeddings/vector search), retrieves the most relevant chunks for a user's question, and gives those chunks to a model.
+
+Germinate currently crawls known pages, uses rules to preselect links, and asks a model to classify/extract each page. There is no vector database, embedding search, or question-answering layer. It could become full RAG later by storing indexed opportunities and retrieving them in response to queries such as “show restoration grants open to Spanish nonprofits.”
+
+## Costs and bottlenecks
+
+- One candidate page normally means one API request, so cost and time scale with candidate count and page length.
+- `max_pages_per_run` and `max_page_characters` cap that exposure.
+- Dynamic sites need dedicated collectors; robots rules, rate limits, layout changes, PDFs, logins, and anti-bot systems can block collection.
+- Model output can still be wrong, so evidence, confidence thresholds, evals, and human review remain necessary.
+- Scheduling and hosting are separate future layers; this repository currently runs on demand.

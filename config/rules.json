@@ -13,7 +13,7 @@
   "rejection_terms": [
     "loan", "loans", "equity", "investment capital", "credit", "guarantee",
     "procurement", "tender", "technical assistance only", "préstamo", "préstamos",
-    "crédito", "garantía", "licitación", "contratación"
+    "crédito", "garantía", "licitación", "contratación", "deuda", "endeudado", "debt"
   ],
   "minimum_score": 3
 }
