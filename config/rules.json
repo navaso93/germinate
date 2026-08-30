@@ -1,0 +1,20 @@
+{
+  "grant_terms": [
+    "grant", "grants", "subgrant", "sub-grant", "funding", "fund", "call for proposals",
+    "convocatoria", "convocatorias", "subvención", "subvenciones", "ayuda", "ayudas"
+  ],
+  "topic_terms": [
+    "sustainability", "sustainable", "regenerative", "regeneration", "restoration",
+    "ecosystem", "biodiversity", "conservation", "agriculture", "agricultura",
+    "farming", "food", "rural", "climate", "forestry", "forest", "soil", "water",
+    "local development", "community-led", "just transition", "sostenibilidad",
+    "restauración", "regeneración", "desarrollo rural", "cambio climático"
+  ],
+  "rejection_terms": [
+    "loan", "loans", "equity", "investment capital", "credit", "guarantee",
+    "procurement", "tender", "technical assistance only", "préstamo", "préstamos",
+    "crédito", "garantía", "licitación", "contratación"
+  ],
+  "minimum_score": 3
+}
+

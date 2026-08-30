@@ -1,0 +1,39 @@
+[
+  {
+    "name": "Biodiversa+",
+    "collector_type": "html",
+    "start_urls": ["https://www.biodiversa.eu/"],
+    "notes": "Monitor research funding, open calls and upcoming calls. Record consortium requirements."
+  },
+  {
+    "name": "Sistema Nacional de Publicidad de Subvenciones",
+    "collector_type": "interactive_search",
+    "start_urls": ["https://www.infosubvenciones.es/bdnstrans/A03/es/convocatorias"],
+    "notes": "Dynamic database. This first version only inspects the initial HTML and flags that a specialized collector is required."
+  },
+  {
+    "name": "EU Rural Toolkit",
+    "collector_type": "interactive_search",
+    "start_urls": ["https://funding.rural-vision.europa.eu/"],
+    "notes": "Interactive funding finder. Exclude financial instruments and technical assistance without funding."
+  },
+  {
+    "name": "ECOLISE",
+    "collector_type": "html",
+    "start_urls": [
+      "https://ecolise.eu/how-we-do-it/regenerative-communities-fund/",
+      "https://ecolise.eu/news/"
+    ],
+    "notes": "Monitor the Regenerative Communities Fund and new calls for proposals."
+  },
+  {
+    "name": "Swedish Postcode Lottery Foundation",
+    "collector_type": "html",
+    "start_urls": [
+      "https://postkodlotterietsstiftelse.se/en/apply-for-support/apply-now/",
+      "https://postkodlotterietsstiftelse.se/en/our-support/call-for-proposals/"
+    ],
+    "notes": "Only registered charitable or nonprofit organizations are eligible."
+  }
+]
+
