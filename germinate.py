@@ -4,6 +4,7 @@ from dataclasses import asdict,dataclass
 from datetime import datetime,timezone
 from pathlib import Path
 from urllib.error import HTTPError,URLError
+from urllib.parse import urlparse
 from agent.client import OpenAIAgent
 from collectors.html import Link,extract_links,extract_text,fetch_html
 from collectors.interactive import limitation_note
@@ -31,6 +32,48 @@ def classify(link,source,rules,checked_at):
     else: decision,note="review","Grant type or thematic fit is incomplete."
     return Result(source["name"],source["collector_type"],link.title,link.url,decision,score,"; ".join(grants),"; ".join(topics),"; ".join(rejected),checked_at,note)
 
+def classify_page(link,page_text,source,rules,checked_at):
+    """Classify an opportunity using its link and full visible page text."""
+    searchable=f"{link.title} {link.url} {page_text}"
+    grants=find_terms(searchable,rules["grant_terms"]); topics=find_terms(searchable,rules["topic_terms"])
+    rejected=find_terms(searchable,rules["rejection_terms"])
+    if not grants and not topics and not rejected: return None
+    score=len(grants)*2+len(topics)-len(rejected)*4
+    if rejected: decision,note="rejected","Full page contains an excluded financing or procurement term."
+    elif grants and topics and score>=rules["minimum_score"]: decision,note="candidate","Grant and relevant theme confirmed in the full page text."
+    else: decision,note="review","Full page does not clearly confirm both grant type and thematic fit."
+    return Result(source["name"],source["collector_type"],link.title,link.url,decision,score,"; ".join(grants),"; ".join(topics),"; ".join(rejected),checked_at,note)
+
+def is_same_site(url,start_url):
+    host=urlparse(url).hostname or ""; start_host=urlparse(start_url).hostname or ""
+    return host.casefold().removeprefix("www.")==start_host.casefold().removeprefix("www.")
+
+def is_promising_link(link,rules):
+    searchable=f"{link.title} {link.url}"
+    return bool(find_terms(searchable,rules["grant_terms"]+rules["topic_terms"])) and not find_terms(searchable,rules["rejection_terms"])
+
+def crawl_start_url(start_url,source,rules,checked_at,fetcher=fetch_html):
+    """Follow relevant same-site links and classify their full pages."""
+    max_depth=int(source.get("max_depth",2)); max_pages=int(source.get("max_pages",30))
+    queue=[(Link(source["name"],start_url),0)]; visited=set(); results=[]; errors=[]
+    while queue and len(visited)<max_pages:
+        link,depth=queue.pop(0)
+        normalized=link.url.casefold()
+        if normalized in visited: continue
+        visited.add(normalized)
+        try:
+            html=fetcher(link.url); page_text=extract_text(html)
+        except (HTTPError,URLError,TimeoutError,ValueError) as exc:
+            errors.append(f"{source['name']} | {link.url} | {exc}"); continue
+        if depth>0:
+            result=classify_page(link,page_text,source,rules,checked_at)
+            if result: results.append(result)
+        if depth>=max_depth: continue
+        for child in extract_links(html,link.url):
+            if child.url.casefold() not in visited and is_same_site(child.url,start_url) and is_promising_link(child,rules):
+                queue.append((child,depth+1))
+    return results,errors
+
 def inspect_html(html,base_url,source,rules,checked_at):
     return [r for link in extract_links(html,base_url) if (r:=classify(link,source,rules,checked_at))]
 
@@ -45,8 +88,8 @@ def run_live(sources,rules,checked_at):
         if source["collector_type"]=="interactive_search":
             results.append(Result(source["name"],source["collector_type"],"Specialized collector required",source["start_urls"][0],"needs_specialized_collector",0,"","","",checked_at,limitation_note())); continue
         for url in source["start_urls"]:
-            try: results.extend(inspect_html(fetch_html(url),url,source,rules,checked_at))
-            except (HTTPError,URLError,TimeoutError,ValueError) as exc: errors.append(f"{source['name']} | {url} | {exc}")
+            found,failures=crawl_start_url(url,source,rules,checked_at)
+            results.extend(found); errors.extend(failures)
     return results,errors
 
 def enrich(results,agent_config):

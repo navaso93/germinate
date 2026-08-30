@@ -36,7 +36,7 @@ Offline demonstration, with no internet or API cost:
 .\run-demo.ps1
 ```
 
-Live collection using deterministic rules only:
+Live collection using deterministic rules only. It follows promising same-site links, reads their full page text, and stops at each source's `max_depth` and `max_pages` limits:
 
 ```powershell
 .\run-live.ps1
@@ -48,6 +48,14 @@ Live collection plus agent analysis:
 Copy-Item .env.example .env
 # Edit .env and replace the placeholder with your real key
 .\run-live.ps1 -Agent
+```
+
+Test the agent with one small API call, without crawling live websites:
+
+```powershell
+Copy-Item .env.example .env
+# Replace the placeholder in .env with your API key
+.\test-agent.ps1
 ```
 
 Create an API key in the [OpenAI API key dashboard](https://platform.openai.com/api-keys). Put only this in the uncommitted `.env`:
@@ -62,7 +70,7 @@ An API subscription is billed separately from a ChatGPT subscription. Never past
 
 1. `sources.json` controls **where** Germinate searches.
 2. Each collector controls **how** a source is read.
-3. `rules.json` cheaply controls which links reach full-page analysis.
+3. `rules.json` controls which links are followed and classifies their full page text.
 4. `prompt.md` explains what Germinate considers an acceptable grant.
 5. `schema.json` controls the exact structured output.
 6. `agent.json` controls the model, confidence cutoff, maximum pages per run, text size, output size, and timeout.
@@ -70,9 +78,35 @@ An API subscription is billed separately from a ChatGPT subscription. Never past
 
 Low-confidence model answers are changed to `review`. The rule result remains in the CSV beside the agent result so decisions are auditable. Each run **replaces** its output file with a fresh snapshot; it does not append.
 
+## How pages become CSV rows
+
+For each ordinary HTML source, Germinate:
+
+1. Opens every configured `start_url`. Start pages guide discovery but are not themselves written as opportunity rows.
+2. Follows same-site links when the link title or URL contains a grant or topic term and no rejection term.
+3. Repeats this up to the source's `max_depth` and `max_pages` limits. The current HTML sources use depth 2 and 30 pages.
+4. Classifies each followed page using its link title, URL, and full visible page text.
+5. Writes a row when at least one grant, topic, or rejection term is present.
+
+There is currently **no minimum score for inclusion**. `minimum_score` only separates `candidate` from `review`:
+
+```text
+score = (2 × matched grant terms) + matched topic terms - (4 × rejection terms)
+```
+
+- `rejected`: at least one rejection term is present.
+- `candidate`: grant and topic terms are present and the score is at least `minimum_score` (currently 3).
+- `review`: some relevant terms are present, but the candidate conditions are not met.
+
+After collection, exact source/URL duplicates are removed. Interactive sources produce a `needs_specialized_collector` row instead of pretending their initial HTML is sufficient.
+
+Agent mode does not control whether a collected row is included. It analyzes only local `candidate` and `review` rows, up to `max_pages_per_run` (currently 25), and adds its assessment beside the local rule result. Agent-rejected rows therefore remain visible for auditing.
+
 ## Output
 
 The original columns (`source`, `collector_type`, `title`, `url`, `decision`, `score`, matched terms, `checked_at`, and `note`) show the collector/rule result. Agent columns record whether AI was used, its decision and confidence, grant status, deadline, amount, currency, eligibility, topics, consortium requirement, and reason.
+
+`test-agent.ps1` prints the complete raw structured agent response. The live CSV currently stores only the fields represented by the `Result` record, so raw fields such as `rolling_application`, `evidence`, and the agent-extracted title are not yet copied into the CSV.
 
 ## “Fine-tuning” the agent
 

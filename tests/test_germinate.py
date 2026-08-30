@@ -21,4 +21,21 @@ class GerminateTests(unittest.TestCase):
         a=APP.Result("S","html","A","https://x","review",1,"","","",self.checked,"")
         b=APP.Result("S","html","B","https://x","candidate",5,"","","",self.checked,"")
         self.assertEqual(APP.deduplicate([a,b])[0].title,"B")
+    def test_full_page_text_controls_classification(self):
+        link=APP.Link("Funding opportunity","https://example.org/call")
+        result=APP.classify_page(link,"Non-repayable restoration grant for rural communities.",self.source,self.rules,self.checked)
+        self.assertEqual(result.decision,"candidate")
+        rejected=APP.classify_page(link,"A sustainable agriculture loan repayable over five years.",self.source,self.rules,self.checked)
+        self.assertEqual(rejected.decision,"rejected")
+    def test_crawler_follows_relevant_links_across_levels(self):
+        pages={
+            "https://example.org/":"<a href='/funding'>Sustainable funding</a><a href='/about'>About us</a>",
+            "https://example.org/funding":"<a href='/funding/restoration-grant'>Restoration grant</a>",
+            "https://example.org/funding/restoration-grant":"<h1>Open call</h1><p>Non-repayable grant for ecosystem restoration.</p>",
+        }
+        source={"name":"Test","collector_type":"html","max_depth":2,"max_pages":10}
+        results,errors=APP.crawl_start_url("https://example.org/",source,self.rules,self.checked,pages.__getitem__)
+        self.assertFalse(errors)
+        self.assertEqual([r.url for r in results],["https://example.org/funding","https://example.org/funding/restoration-grant"])
+        self.assertEqual(results[-1].decision,"candidate")
 if __name__=="__main__": unittest.main()
