@@ -1,5 +1,7 @@
 # Germinate grant monitor
 
+Planned improvements and open decisions are tracked in [Next steps](NEXT_STEPS.md).
+
 Germinate collects links from funding websites, applies inexpensive transparent rules, and can optionally ask an OpenAI model to verify and structure promising opportunities.
 
 ## How information moves
