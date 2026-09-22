@@ -12,7 +12,7 @@ config/sources.json → collectors → config/rules.json → optional OpenAI age
                               only candidate/review pages
 ```
 
-The **application/agent lives on the computer that runs this repository**. It is not hosted yet. The collectors communicate with funding sites over HTTPS. When enabled, `agent/client.py` communicates with OpenAI's Responses API over HTTPS. The final CSV remains local.
+The **application/agent lives on the computer that runs this repository**. It is not hosted yet. The collectors communicate with funding sites over HTTPS. When enabled, `agent/client.py` communicates with OpenAI's Responses API over HTTPS. The CSV is saved locally and can optionally be uploaded to a Google Drive folder.
 
 ## Repository structure
 
@@ -86,7 +86,7 @@ For each ordinary HTML source, Germinate:
 
 1. Opens every configured `start_url`. Start pages guide discovery but are not themselves written as opportunity rows.
 2. Follows same-site links when the link title or URL contains a grant or topic term and no rejection term.
-3. Repeats this up to the source's `max_depth` and `max_pages` limits. The current HTML sources use depth 2 and 30 pages.
+3. Repeats this up to the source's `max_depth` and `max_pages` limits. Imported HTML sources default to depth 2 and 30 pages; limits are configurable per source.
 4. Classifies each followed page using its link title, URL, and full visible page text.
 5. Writes a row when at least one grant, topic, or rejection term is present.
 
@@ -135,3 +135,59 @@ Germinate currently crawls known pages, uses rules to preselect links, and asks 
 - Dynamic sites need dedicated collectors; robots rules, rate limits, layout changes, PDFs, logins, and anti-bot systems can block collection.
 - Model output can still be wrong, so evidence, confidence thresholds, evals, and human review remain necessary.
 - Scheduling and hosting are separate future layers; this repository currently runs on demand.
+
+## Website keyword searches
+
+Example configuration files explain their fields in leading `//` comments. Germinate supports these header comments; strict JSON tools require removing them.
+
+Set a source's `collector_type` to `html_search` and add a `search` object; see `config/search-source.example.json`. `search.url` is the real GET form endpoint, `query_parameter` is its keyword field, `keywords` contains one phrase per search, and `parameters` contains fixed filter values (including lists for repeated checkbox parameters). These values must match the website's actual form. No model call is needed to submit a search.
+
+RED PAC is configured with its verified `title` field and initial keywords `rural`, `agricultura`, and `biodiversidad`. Edit those keywords in `config/sources.json`. Its `result_container_class` restricts discovery to the search results rather than the site's navigation; a missing container is reported as an error. Result links in that container are read even when their title is generic, then classified using full page text. An empty result area produces no opportunities.
+
+`max_pages` is now shared across all start URLs/searches for each source, including search pages; `max_depth` still controls link depth. Earlier keywords can exhaust that budget. Automatic pagination, POST forms, JavaScript-only results, login and CAPTCHA handling are not implemented by this GET collector. Those sites need dedicated adapters. Newly imported URLs default to HTML collection and need review; importing a URL does not automatically configure its search form.
+
+## Import source URLs from Google Sheets
+
+The local `config/sheets.json` is configured for **Buscadores de financiaciones**, column **A**, beginning at row **3** (below the two heading rows). The tab name was verified from the supplied Sheet. On another checkout, copy `config/sheets.example.json` to `config/sheets.json` and supply the spreadsheet URL or ID.
+
+```powershell
+python sync_sources.py          # preview new URLs
+python sync_sources.py --apply  # merge them into config/sources.json
+```
+
+The supplied Sheet is currently readable without signing in, so `access: "public"` uses its XLSX export directly, with no Google API key or extra Python packages. It reads hyperlink targets behind names as well as plain-text URLs, preserves labels as source names, and reports headings/cells without URLs. Only the configured tab and column are imported. The public export reader uses the tab name (not the URL's gid); update the configuration if the tab is renamed. This does not change the Sheet's sharing permissions.
+
+Imports append new URLs and preserve existing entries, search keywords, collectors and limits. Repeating a sync is safe. Deleted or changed Sheet URLs do not remove or replace previous sources automatically. Invalid linked URLs abort the import; local writes are atomic. Google Sheets itself is never edited. Updating source URLs from Sheets is separate from uploading the resulting opportunities CSV to Drive (see below).
+
+For a **private** Sheet, set `access` to `private`, enable the Google Sheets API in a Google Cloud project, and install optional support:
+
+```powershell
+python -m pip install -r requirements-sheets.txt
+$env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\path\outside-repository\service-account.json'
+python sync_sources.py
+```
+
+Share only the required Sheet with that service account as **Viewer**. The importer requests the `spreadsheets.readonly` scope and reads hyperlink metadata through the Sheets API. Existing Application Default Credentials can also be used. Store credentials outside Git (the repository's `secrets/` folder is ignored if needed). See Google's [Sheets API authorization guide](https://developers.google.com/workspace/sheets/api/scopes). Private authentication requires your Google configuration and has not been live-tested with this public Sheet.
+
+
+## Save results to Google Drive
+
+Uploads create a dated CSV in your chosen folder. The local CSV is kept too. This does not modify the source Google Sheet or convert results to a Google Sheet.
+
+1. Install optional dependencies: `python -m pip install -r requirements-drive.txt`.
+2. Copy `config/drive.example.json` to `config/drive.json`. Paste the destination folder URL into `folder`.
+3. In Google Cloud, enable the Drive API and create an OAuth client of type **Desktop app**. Configure the consent screen and add your account as a test user if required. Save the downloaded client JSON as `secrets/drive-client.json`.
+4. Run `python drive_upload.py --authorize` and sign in with an account that can add files to the folder. This connects Google without uploading anything.
+5. Set `enabled` to `true` in `config/drive.json`. Future live runs upload the CSV automatically.
+
+This desktop integration requests the **full Drive scope** so it can use an existing folder supplied by URL without a Google Picker integration. Google's consent screen describes that access. The code checks the selected folder and creates CSV files there; it does not change sharing permissions or delete existing files. Tokens are stored in the ignored `secrets/` directory. Credentials paths are relative to the project root unless absolute. Do not commit or share credential files. Google setup follows the [official desktop OAuth guide](https://developers.google.com/workspace/drive/api/quickstart/python).
+
+```powershell
+.\run-live.ps1 -Drive                  # explicitly upload this run
+.\run-live.ps1 -Agent -Drive           # analyze with AI and upload
+python drive_upload.py --file output/opportunities.csv  # upload an existing result
+```
+
+Normal demo runs never upload; `--demo --drive` explicitly opts into uploading demo data. Without a Drive config, live runs remain local. Upload failures return exit code 2 and preserve the local CSV. A later manual upload creates a new dated file; after a network interruption, check the folder first because Google may already have received the earlier upload. Empty results upload a header-only CSV. Crawl errors continue to be printed, so an uploaded file is not a guarantee of complete collection.
+
+OAuth authorization must be completed locally before unattended runs. Testing-mode Google apps may require renewed consent when refresh tokens expire. Reading a publicly shared input Sheet does not grant permission to upload to Drive.

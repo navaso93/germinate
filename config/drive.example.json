@@ -1,0 +1,6 @@
+{
+  "enabled": false,
+  "folder": "",
+  "client_secrets_file": "secrets/drive-client.json",
+  "token_file": "secrets/drive-token.json"
+}

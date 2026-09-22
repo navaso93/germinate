@@ -2,6 +2,11 @@ __pycache__/
 *.py[cod]
 .venv/
 .env
+config/sheets.json
+secrets/
 output/*.csv
 !output/.gitkeep
 
+
+config/drive.json
+output/red-pac-model-test/

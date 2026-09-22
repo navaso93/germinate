@@ -39,3 +39,41 @@ def extract_links(html: str, base_url: str) -> list[Link]:
 
 def extract_text(html: str) -> str:
     parser=Parser(""); parser.feed(html); return "\n".join(parser.text)
+
+class ScopedParser(Parser):
+    """Extract links only inside a configured search-results container."""
+    VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'}
+
+    def __init__(self, base_url, container_class):
+        super().__init__(base_url)
+        self.container_class = container_class
+        self.scope_depth = 0
+        self.matched = False
+
+    def handle_starttag(self, tag, attrs):
+        if not self.scope_depth:
+            if self.container_class not in dict(attrs).get('class', '').split():
+                return
+            self.matched = True
+            self.scope_depth = 1
+        elif tag not in self.VOID:
+            self.scope_depth += 1
+        super().handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag):
+        if self.scope_depth:
+            super().handle_endtag(tag)
+            if tag not in self.VOID:
+                self.scope_depth -= 1
+
+    def handle_data(self, data):
+        if self.scope_depth:
+            super().handle_data(data)
+
+
+def extract_search_links(html, base_url, container_class):
+    parser = ScopedParser(base_url, container_class)
+    parser.feed(html)
+    if not parser.matched:
+        raise ValueError(f'Search result container not found: {container_class}')
+    return list({link.url: link for link in parser.links}.values())

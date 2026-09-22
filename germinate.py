@@ -6,8 +6,11 @@ from pathlib import Path
 from urllib.error import HTTPError,URLError
 from urllib.parse import urlparse
 from agent.client import OpenAIAgent
-from collectors.html import Link,extract_links,extract_text,fetch_html
+from collectors.html import Link,extract_links,extract_text,fetch_html,extract_search_links
 from collectors.interactive import limitation_note
+from collectors.search import search_urls
+from config_io import load_json
+from drive_upload import configured_upload
 ROOT=Path(__file__).resolve().parent
 
 @dataclass
@@ -18,7 +21,6 @@ class Result:
     deadline:str=""; amount_min:str=""; amount_max:str=""; currency:str=""
     eligible_countries:str=""; eligible_applicants:str=""; topics:str=""; consortium_required:str=""; agent_reason:str=""
 
-def load_json(path): return json.loads(Path(path).read_text(encoding="utf-8-sig"))
 def find_terms(text,terms):
     lowered=text.casefold(); return sorted({term for term in terms if term.casefold() in lowered})
 
@@ -52,13 +54,13 @@ def is_promising_link(link,rules):
     searchable=f"{link.title} {link.url}"
     return bool(find_terms(searchable,rules["grant_terms"]+rules["topic_terms"])) and not find_terms(searchable,rules["rejection_terms"])
 
-def crawl_start_url(start_url,source,rules,checked_at,fetcher=fetch_html):
+def crawl_start_url(start_url,source,rules,checked_at,fetcher=fetch_html,visited=None):
     """Follow relevant same-site links and classify their full pages."""
     max_depth=int(source.get("max_depth",2)); max_pages=int(source.get("max_pages",30))
-    queue=[(Link(source["name"],start_url),0)]; visited=set(); results=[]; errors=[]
+    queue=[(Link(source["name"],start_url),0)]; visited=set() if visited is None else visited; results=[]; errors=[]
     while queue and len(visited)<max_pages:
         link,depth=queue.pop(0)
-        normalized=link.url.casefold()
+        normalized=link.url
         if normalized in visited: continue
         visited.add(normalized)
         try:
@@ -69,8 +71,13 @@ def crawl_start_url(start_url,source,rules,checked_at,fetcher=fetch_html):
             result=classify_page(link,page_text,source,rules,checked_at)
             if result: results.append(result)
         if depth>=max_depth: continue
-        for child in extract_links(html,link.url):
-            if child.url.casefold() not in visited and is_same_site(child.url,start_url) and is_promising_link(child,rules):
+        try:
+            container=source.get("search",{}).get("result_container_class") if depth==0 else None
+            children=extract_search_links(html,link.url,container) if container else extract_links(html,link.url)
+        except ValueError as exc:
+            errors.append(f"{source['name']} | {link.url} | {exc}"); continue
+        for child in children:
+            if child.url not in visited and is_same_site(child.url,start_url) and (bool(container) or is_promising_link(child,rules)):
                 queue.append((child,depth+1))
     return results,errors
 
@@ -87,8 +94,15 @@ def run_live(sources,rules,checked_at):
         print(f"Checking {source['name']}...",flush=True)
         if source["collector_type"]=="interactive_search":
             results.append(Result(source["name"],source["collector_type"],"Specialized collector required",source["start_urls"][0],"needs_specialized_collector",0,"","","",checked_at,limitation_note())); continue
-        for url in source["start_urls"]:
-            found,failures=crawl_start_url(url,source,rules,checked_at)
+        try:
+            if source["collector_type"] not in {"html", "html_search"}:
+                raise ValueError("Unknown collector_type")
+            urls=search_urls(source) if source["collector_type"]=="html_search" else source["start_urls"]
+        except ValueError as exc:
+            errors.append(f"{source['name']} | {exc}"); continue
+        visited=set()
+        for url in urls:
+            found,failures=crawl_start_url(url,source,rules,checked_at,visited=visited)
             results.extend(found); errors.extend(failures)
     return results,errors
 
@@ -123,6 +137,7 @@ def write_csv(results,output_path):
 
 def main():
     parser=argparse.ArgumentParser(); parser.add_argument("--demo",action="store_true"); parser.add_argument("--agent",action="store_true")
+    parser.add_argument("--drive",action="store_true",help="Upload the CSV to the configured Drive folder")
     parser.add_argument("--output",type=Path,default=ROOT/"output"/"opportunities.csv"); args=parser.parse_args()
     rules=load_json(ROOT/"config"/"rules.json"); sources=load_json(ROOT/"config"/"sources.json"); config=load_json(ROOT/"config"/"agent.json")
     checked=datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -130,6 +145,13 @@ def main():
     results=deduplicate(results)
     if args.agent or config["enabled"]: errors.extend(enrich(results,config))
     write_csv(results,args.output); print(f"Saved {len(results)} records to {args.output}")
+    upload_failed=False
+    try:
+        drive_url=configured_upload(args.output,force=args.drive,demo=args.demo)
+        if drive_url: print(f"Uploaded to Google Drive: {drive_url}")
+    except Exception as exc:
+        upload_failed=True
+        errors.append(f"Drive upload failed: {exc}. Local results remain at {args.output}.")
     for error in errors: print(error,file=sys.stderr)
-    return 0 if results else 1
+    return 2 if upload_failed else (0 if results else 1)
 if __name__=="__main__": raise SystemExit(main())

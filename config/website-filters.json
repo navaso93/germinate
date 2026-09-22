@@ -1,0 +1,64 @@
+{
+  "websites": [
+    {
+      "source_name": "RED PAC",
+      "url": "https://redpac.es/buscador-ayudas",
+      "filters": {
+        "field_territorial_scope_target_id": {
+          "label": "Ámbito territorial",
+          "type": "select",
+          "config_key": "search.parameters.field_territorial_scope_target_id",
+          "options": {
+            "All": "Selecciona... (sin filtro territorial)",
+            "11": "NACIONAL",
+            "12": "ANDALUCIA",
+            "13": "ARAGON",
+            "14": "ASTURIAS",
+            "15": "BALEARES",
+            "16": "C.VALENCIANA",
+            "17": "CANARIAS",
+            "18": "CANTABRIA",
+            "19": "CASTILLA Y LEON",
+            "20": "CASTILLA-LA MANCHA",
+            "21": "CATALUÑA",
+            "23": "EXTREMADURA",
+            "24": "GALICIA",
+            "25": "LA RIOJA",
+            "26": "MADRID",
+            "28": "MURCIA",
+            "29": "NAVARRA",
+            "30": "PAIS VASCO"
+          }
+        },
+        "field_call_year_value": {
+          "label": "Año convocatoria",
+          "type": "text",
+          "config_key": "search.parameters.field_call_year_value",
+          "empty_value": "",
+          "example": "2026"
+        },
+        "field_ifgc_value": {
+          "label": "Mecanismos de apoyo",
+          "type": "select",
+          "config_key": "search.parameters.field_ifgc_value",
+          "options": {
+            "All": "- Cualquiera -",
+            "0": "Convocatoria de Ayudas/ Intervenciones/ Subvenciones",
+            "1": "Convocatoria de Instrumentos Financieros de Gestión Centralizada"
+          }
+        },
+        "title": {
+          "label": "Buscar un término",
+          "type": "list",
+          "config_key": "search.keywords",
+          "query_parameter": "title",
+          "empty_value": [],
+          "example": [
+            "rural",
+            "agricultura"
+          ]
+        }
+      }
+    }
+  ]
+}

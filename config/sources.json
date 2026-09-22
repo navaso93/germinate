@@ -4,19 +4,25 @@
     "collector_type": "html",
     "max_depth": 2,
     "max_pages": 30,
-    "start_urls": ["https://www.biodiversa.eu/"],
+    "start_urls": [
+      "https://www.biodiversa.eu/"
+    ],
     "notes": "Monitor research funding, open calls and upcoming calls. Record consortium requirements."
   },
   {
     "name": "Sistema Nacional de Publicidad de Subvenciones",
     "collector_type": "interactive_search",
-    "start_urls": ["https://www.infosubvenciones.es/bdnstrans/A03/es/convocatorias"],
+    "start_urls": [
+      "https://www.infosubvenciones.es/bdnstrans/A03/es/convocatorias"
+    ],
     "notes": "Dynamic database. This first version only inspects the initial HTML and flags that a specialized collector is required."
   },
   {
     "name": "EU Rural Toolkit",
     "collector_type": "interactive_search",
-    "start_urls": ["https://funding.rural-vision.europa.eu/"],
+    "start_urls": [
+      "https://funding.rural-vision.europa.eu/"
+    ],
     "notes": "Interactive funding finder. Exclude financial instruments and technical assistance without funding."
   },
   {
@@ -40,5 +46,420 @@
       "https://postkodlotterietsstiftelse.se/en/our-support/call-for-proposals/"
     ],
     "notes": "Only registered charitable or nonprofit organizations are eligible."
+  },
+  {
+    "name": "Fundacion Biodiversidad buscador",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://fundacion-biodiversidad.es/buscador-de-convocatorias/?_sfm_estado=Abiertas"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Sistema Nacional de Publicidad de Subvenciones y Ayudas Públicas",
+    "collector_type": "interactive_search",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.infosubvenciones.es/bdnstrans/GE/es/inicio"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Portal IPYME (es lo mismo de la Oficina Nacional de Emprendimiento, mas abajo)",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://ipyme.org/es-es/AyudasIncentivos/Paginas/buscador-de-ayudas.aspx"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "RED PAC",
+    "collector_type": "html_search",
+    "max_depth": 1,
+    "max_pages": 30,
+    "start_urls": [
+      "https://redpac.es/buscador-ayudas"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling.",
+    "search": {
+      "url": "https://redpac.es/buscador-ayudas",
+      "query_parameter": "title",
+      "keywords": [
+        "rural",
+        "agricultura",
+        "biodiversidad"
+      ],
+      "result_container_class": "view-id-ayudas",
+      "parameters": {
+        "field_territorial_scope_target_id": "All",
+        "field_call_year_value": "",
+        "field_ifgc_value": "0"
+      }
+    }
+  },
+  {
+    "name": "Kit Rural",
+    "collector_type": "interactive_search",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://funding.rural-vision.europa.eu/finder?lng=en"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "AlertaLicita (CAT) - De pago (competidor de nuestro radar, pero solo en Catalunya)",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://alertalicita.com/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "FiGroup",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.fi-group.es/es/ayudas"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Oficina Nacional de Emprendimiento (es lo mismo del portal YPYME mas arriba)",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://one.gob.es/es/buscador-de-ayudas-e-incentivos-para-empresas"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "EU Funding and Tenders Portal",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/calls-for-proposals?isExactMatch=true&status=31094501,31094502,31094503&order=DESC&pageNumber=1&pageSize=50&sortBy=startDate"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "EIT Food",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.eitfood.eu/open-calls-overview"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Spain NAB",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://spainnab.org/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "SPLORO (cascade funding) - EU",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://cascadefunding.eu/open-calls/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Licitaciones Estado",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://contrataciondelestado.es/wps/portal/licitaciones"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Ministerio de Agricultura, Pesca y Alimentación (FEADER)",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.mapa.gob.es/es/pac/ayudas-2023-2027"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "LEADER",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.miteco.gob.es/es/ceneam/recursos/pag-web/gestion-ambiental/leader-clld.html"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Grupos de acción local (GAL)",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.mapa.gob.es/es/cartografia-y-sig/ide/descargas/desarrollo-rural/gal"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Fundación Ibercaja",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.fundacionibercaja.es/convocatorias/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Fundación Carrasso",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://fondationcarasso.org/es/convocatorias/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Ship2B Foundation",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.ship2b.org/en/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "NATOORA",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://natoora.com/en-GB/farm-fund/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "European Headwater flow fund",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://european-headwaters-facility.vercel.app/flow-fund"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "National Geographic",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.nationalgeographic.org/explore/grants-investments"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Unnearthtodox",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://unearthodox.org/2025/08/sparks-of-regeneration/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "European Forest Institute",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://grants-tenders.efi.int/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Fundación Caja de Ingenieros",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.caixaenginyers.com/es/web/fundacion"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Ashoka",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.ashoka.org/es-es/eventos"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Fundación Banco Sabadell",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.fundacionbancosabadell.com/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "DRK Foundation",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.drkfoundation.org/apply/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "MaC Arthur foundation",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.macfound.org/grants/overview"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Programa CERV",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://citizens-equality-rights-values.campaign.europa.eu/index_es"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Fundación Endesa (biodiversidad)",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.fundacionendesa.org/es/biodiversidad"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Fundación Endesa (empleo verde)",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.fundacionendesa.org/es/formacion-empleo"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Triodos Bank",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.triodos.es/es"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "AgriVentures",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://agriventures.co/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "GrantiBite",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.grantbite.com/es"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Programa TIF",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://programatif.com/convocatorias"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "AgroGestiona (competidor)",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://agrogestiona.es/?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAcGRvZgJleHRuA2FlbQIxMQBzcnRjBmFwcF9pZA85MzY2MTk3NDMzOTI0NTkAAaeR4oO6FyK54crlmuHJ84J7V5pfLKjN9G0jN5D4Qw_tNmuSPuW02no6d99QbA_aem_7OVxFe66TLN3ZDbBHvFEAA"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "https://www.oikocredit.org/es/",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://www.oikocredit.org/es/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Closer",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://closer.earth/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
+  },
+  {
+    "name": "Fundaciones por el Clima",
+    "collector_type": "html",
+    "max_depth": 2,
+    "max_pages": 30,
+    "start_urls": [
+      "https://fundacionesporelclima.org/fundaciones-firmantes/"
+    ],
+    "notes": "Imported from Google Sheets; review collector type before crawling."
   }
 ]
