@@ -36,7 +36,7 @@ def credentials(config, authorize=False):
         from google.oauth2.credentials import Credentials
         from google_auth_oauthlib.flow import InstalledAppFlow
     except ImportError as exc:
-        raise RuntimeError('Install Drive support: python -m pip install -r requirements-drive.txt') from exc
+        raise RuntimeError('Install Drive support: python -m pip install -r requirements.txt') from exc
     token = local_path(config.get('token_file', 'secrets/drive-token.json'))
     if authorize:
         client = local_path(config.get('client_secrets_file', 'secrets/drive-client.json'))
@@ -85,7 +85,7 @@ def upload_csv(path, config):
         from googleapiclient.discovery import build
         from googleapiclient.http import MediaFileUpload
     except ImportError as exc:
-        raise RuntimeError('Install Drive support: python -m pip install -r requirements-drive.txt') from exc
+        raise RuntimeError('Install Drive support: python -m pip install -r requirements.txt') from exc
     with build('drive', 'v3', credentials=creds, cache_discovery=False) as service:
         return upload_with_service(path, destination, service, MediaFileUpload)
 

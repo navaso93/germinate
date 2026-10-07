@@ -49,7 +49,7 @@ def fetch_values(config):
         import google.auth
         from google.auth.transport.requests import AuthorizedSession
     except ImportError as exc:
-        raise RuntimeError("Install Sheets support: python -m pip install -r requirements-sheets.txt") from exc
+        raise RuntimeError("Install Sheets support: python -m pip install -r requirements.txt") from exc
     credentials, _ = google.auth.default(scopes=[SCOPE])
     url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet}"
     with AuthorizedSession(credentials) as session:

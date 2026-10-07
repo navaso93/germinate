@@ -1,16 +1,16 @@
 """Germinate: collect, pre-filter, optionally analyze, and export grant opportunities."""
-import argparse,csv,json,sys
-from dataclasses import asdict,dataclass
+import argparse,sys
+from dataclasses import dataclass
 from datetime import datetime,timezone
 from pathlib import Path
 from urllib.error import HTTPError,URLError
 from urllib.parse import urlparse
 from agent.client import OpenAIAgent
 from collectors.html import Link,extract_links,extract_text,fetch_html,extract_search_links
-from collectors.interactive import limitation_note
 from collectors.search import search_urls
 from config_io import load_json
 from drive_upload import configured_upload
+from output_columns import write_output,write_audit,validate_columns,DEFAULT_CONFIG
 ROOT=Path(__file__).resolve().parent
 
 @dataclass
@@ -20,6 +20,8 @@ class Result:
     agent_used:bool=False; agent_decision:str=""; agent_confidence:str=""; grant_status:str=""
     deadline:str=""; amount_min:str=""; amount_max:str=""; currency:str=""
     eligible_countries:str=""; eligible_applicants:str=""; topics:str=""; consortium_required:str=""; agent_reason:str=""
+    funder:str=""; program:str=""; level:str=""; frequency:str=""; requirements:str=""
+    publication_date:str=""; application_status:str="unknown"
 
 def find_terms(text,terms):
     lowered=text.casefold(); return sorted({term for term in terms if term.casefold() in lowered})
@@ -93,7 +95,7 @@ def run_live(sources,rules,checked_at):
     for source in sources:
         print(f"Checking {source['name']}...",flush=True)
         if source["collector_type"]=="interactive_search":
-            results.append(Result(source["name"],source["collector_type"],"Specialized collector required",source["start_urls"][0],"needs_specialized_collector",0,"","","",checked_at,limitation_note())); continue
+            results.append(Result(source["name"],source["collector_type"],"Specialized collector required",source["start_urls"][0],"needs_specialized_collector",0,"","","",checked_at,"This portal needs a dedicated API or browser collector; its initial HTML is not enough.")); continue
         try:
             if source["collector_type"] not in {"html", "html_search"}:
                 raise ValueError("Unknown collector_type")
@@ -114,8 +116,12 @@ def enrich(results,agent_config):
             page_text=extract_text(fetch_html(result.url))
             answer=agent.analyze(source=result.source,url=result.url,page_text=page_text,preliminary={"decision":result.decision,"score":result.score})
             used+=1; result.agent_used=True; result.agent_decision=answer["decision"]; result.agent_confidence=str(answer["confidence"])
-            result.grant_status=answer["grant_status"]; result.deadline=answer["deadline"] or ""; result.amount_min=answer["amount_min"] or ""
-            result.amount_max=answer["amount_max"] or ""; result.currency=answer["currency"] or ""
+            result.grant_status=answer["grant_status"]; result.deadline=answer["deadline"] or ""; result.amount_min=answer["amount_min"] if answer["amount_min"] is not None else ""
+            result.amount_max=answer["amount_max"] if answer["amount_max"] is not None else ""; result.currency=answer["currency"] or ""
+            result.title=answer.get("title") or result.title
+            for field in ("funder","program","level","frequency","requirements","publication_date"):
+                setattr(result,field,answer.get(field) or "")
+            result.application_status=answer.get("application_status") or "unknown"
             result.eligible_countries="; ".join(answer["eligible_countries"]); result.eligible_applicants="; ".join(answer["eligible_applicants"])
             result.topics="; ".join(answer["topics"]); result.consortium_required=str(answer["consortium_required"] or "")
             result.agent_reason=answer["decision_reason"]
@@ -130,21 +136,26 @@ def deduplicate(results):
         if key not in unique or result.score>unique[key].score: unique[key]=result
     return list(unique.values())
 
-def write_csv(results,output_path):
-    output_path.parent.mkdir(parents=True,exist_ok=True)
-    with output_path.open("w",newline="",encoding="utf-8-sig") as handle:
-        writer=csv.DictWriter(handle,fieldnames=list(Result.__dataclass_fields__)); writer.writeheader(); writer.writerows(asdict(r) for r in results)
+def write_csv(results,output_path,output_config=None):
+    write_output(results,output_path,Result.__dataclass_fields__,output_config)
+
 
 def main():
     parser=argparse.ArgumentParser(); parser.add_argument("--demo",action="store_true"); parser.add_argument("--agent",action="store_true")
     parser.add_argument("--drive",action="store_true",help="Upload the CSV to the configured Drive folder")
+    parser.add_argument("--columns-config",type=Path,default=DEFAULT_CONFIG,help="Output column names and order")
     parser.add_argument("--output",type=Path,default=ROOT/"output"/"opportunities.csv"); args=parser.parse_args()
     rules=load_json(ROOT/"config"/"rules.json"); sources=load_json(ROOT/"config"/"sources.json"); config=load_json(ROOT/"config"/"agent.json")
+    output_config=load_json(args.columns_config)
+    validate_columns(output_config,Result.__dataclass_fields__)
     checked=datetime.now(timezone.utc).isoformat(timespec="seconds")
     results,errors=(run_demo(rules,checked),[]) if args.demo else run_live(sources,rules,checked)
     results=deduplicate(results)
     if args.agent or config["enabled"]: errors.extend(enrich(results,config))
-    write_csv(results,args.output); print(f"Saved {len(results)} records to {args.output}")
+    write_csv(results,args.output,output_config); print(f"Saved {len(results)} records to {args.output}")
+    audit_path=args.output.with_name(args.output.stem+".audit.csv")
+    write_audit(results,audit_path,Result.__dataclass_fields__)
+    print(f"Saved raw rules and extracted facts to {audit_path}")
     upload_failed=False
     try:
         drive_url=configured_upload(args.output,force=args.drive,demo=args.demo)

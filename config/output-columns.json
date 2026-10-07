@@ -1,0 +1,76 @@
+{
+  "columns": [
+    {
+      "label": "Titulo",
+      "field": "title"
+    },
+    {
+      "label": "Entidad Financiadora",
+      "field": "funder"
+    },
+    {
+      "label": "Programa",
+      "field": "program"
+    },
+    {
+      "label": "Nivel",
+      "field": "level"
+    },
+    {
+      "label": "Temas",
+      "field": "topics"
+    },
+    {
+      "label": "Fecha límite",
+      "field": "deadline"
+    },
+    {
+      "label": "Frequencia",
+      "field": "frequency"
+    },
+    {
+      "label": "URL (link)",
+      "field": "url"
+    },
+    {
+      "label": "Max Budget (€)",
+      "field": "budget_eur"
+    },
+    {
+      "label": "Estatus",
+      "field": "status"
+    },
+    {
+      "label": "¿Experiencia?",
+      "field": "blank"
+    },
+    {
+      "label": "Requisitos",
+      "field": "requirements"
+    },
+    {
+      "label": "_Documento de trabajo asociado",
+      "field": "blank"
+    },
+    {
+      "label": "Donde encontrado / como nos enteramos?",
+      "field": "blank"
+    },
+    {
+      "label": "Decisión IA",
+      "field": "agent_decision"
+    },
+    {
+      "label": "Publicación",
+      "field": "publication_date"
+    },
+    {
+      "label": "Motivo IA",
+      "field": "agent_reason"
+    },
+    {
+      "label": "Confianza",
+      "field": "agent_confidence"
+    }
+  ]
+}

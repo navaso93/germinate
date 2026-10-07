@@ -10,3 +10,7 @@ output/*.csv
 
 config/drive.json
 output/red-pac-model-test/
+
+output/site-research/
+
+output/multi-source/

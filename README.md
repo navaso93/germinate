@@ -1,193 +1,126 @@
 # Germinate grant monitor
 
-Planned improvements and open decisions are tracked in [Next steps](NEXT_STEPS.md).
+Collect funding opportunities, assess them with an OpenAI model, and export the agreed Spanish columns. Runs execute locally and on demand.
 
-Germinate collects links from funding websites, applies inexpensive transparent rules, and can optionally ask an OpenAI model to verify and structure promising opportunities.
+## Start here
 
-## How information moves
+- [Search guide](config/SOURCE_SEARCH_GUIDE.md): how each of the four searchable websites works, filters and limitations.
+- [Configuration guide](config/README.md): JSON keys and output column definitions.
 
-```text
-config/sources.json → collectors → config/rules.json → optional OpenAI agent → output CSV
-                                      ↓
-                              only candidate/review pages
-```
+There are currently two active collection workflows. They have different search logic; neither is obsolete.
 
-The **application/agent lives on the computer that runs this repository**. It is not hosted yet. The collectors communicate with funding sites over HTTPS. When enabled, `agent/client.py` communicates with OpenAI's Responses API over HTTPS. The CSV is saved locally and can optionally be uploaded to a Google Drive folder.
+| What to run | Command | Active settings |
+| --- | --- | --- |
+| Rural Toolkit, Cascade and IPYME, with model assessment | `python run_sources.py` | `config/site-searches.json` |
+| One of those sources | `python run_sources.py --source ipyme` | Same file |
+| Those sources without model assessment | `python run_sources.py --collect-only` | Same file |
+| Original HTML workflow, including RED PAC | `python germinate.py --agent` | `config/sources.json` |
+| Original workflow without the model | `python germinate.py` | Same file |
+| Offline demonstration | `python germinate.py --demo` | `demo/sample_source.html` |
 
-## Repository structure
+The original runner reads all entries in sources.json; it is not a RED PAC-only command. Its old entries for the three new adapters do not invoke their specialized collectors: use run_sources.py for those sites.
 
-- `germinate.py` — coordinates the complete workflow.
-- `collectors/html.py` — downloads ordinary HTML, extracts links, and converts a page to text.
-- `collectors/interactive.py` — explicit placeholder for dynamic sites requiring an API or browser automation.
-- `config/sources.json` — sites, start URLs, and collector types.
-- `config/rules.json` — visible first-pass grant, topic, and exclusion terms.
-- `agent/client.py` — optional OpenAI Responses API connection.
-- `agent/prompt.md` — Germinate's semantic selection policy.
-- `agent/schema.json` — exact fields and allowed values the model must return.
-- `config/agent.json` — model, confidence threshold, page/call limits, and timeouts.
-- `evals/examples.jsonl` — human-labelled examples used to test future changes.
-- `tests/` — automated code checks that do not call OpenAI.
-- `output/` — generated CSV snapshots; CSV files are intentionally not committed.
-- `.env.example` — safe template for local secrets. The real `.env` is ignored by Git.
+## Setup
 
-## Run it
-
-Offline demonstration, with no internet or API cost:
+Install Python 3.10 or newer and run these commands from the repository folder:
 
 ```powershell
-.\run-demo.ps1
-```
-
-Live collection using deterministic rules only. It follows promising same-site links, reads their full page text, and stops at each source's `max_depth` and `max_pages` limits:
-
-```powershell
-.\run-live.ps1
-```
-
-Live collection plus agent analysis:
-
-```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+# Only if .env does not already exist:
 Copy-Item .env.example .env
-# Edit .env and replace the placeholder with your real key
-.\run-live.ps1 -Agent
 ```
 
-Test the agent with one small API call, without crawling live websites:
+Set `OPENAI_API_KEY` in the local `.env` for model runs. Keep `.env` and credentials out of Git. The offline demonstration and collection-only runs do not need an API key. The single requirements file includes PDF extraction and Google integration dependencies.
+
+To check the API connection with one small paid model request:
 
 ```powershell
-Copy-Item .env.example .env
-# Replace the placeholder in .env with your API key
-.\test-agent.ps1
+python -m agent.smoke_test
 ```
 
-Create an API key in the [OpenAI API key dashboard](https://platform.openai.com/api-keys). Put only this in the uncommitted `.env`:
+The previous run-demo.ps1, run-live.ps1 and test-agent.ps1 launchers have been removed. Use the direct Python commands above. Python must be installed or otherwise available on PATH; the removed launchers' Codex-specific runtime fallback is no longer used.
 
-```dotenv
-OPENAI_API_KEY=your_real_key
+## Where to change behavior
+
+| File | Purpose |
+| --- | --- |
+| `config/sources.json` | Original HTML sources and RED PAC search parameters |
+| `config/site-searches.json` | Specialized searches and date policy for the three newer adapters |
+| `config/website-filters.json` | Website field labels and code meanings; not active selections |
+| `config/rules.json` | Preliminary keyword scoring |
+| `agent/prompt.md` and `agent/schema.json` | Model policy and structured facts |
+| `config/agent.json` | Model and assessment settings |
+| `config/output-columns.json` | Column names, order and field mappings |
+| `collectors/` | HTML parsing, search URLs and specialized collection logic |
+| `run_sources.py` / `germinate.py` | Collection, assessment and export orchestration |
+| `output_columns.py` | Presentation values and audit export |
+| `tests/` | Offline regression tests |
+| `evals/examples.jsonl` | Small labelled examples for future model comparisons; not an automated evaluation runner |
+
+The original runner sends only keyword `candidate`/`review` rows to the model, with a default limit of 25 successful assessments across the run. Its export keeps rejected rows. The specialized runner assesses every retained candidate and exports model accept/review rows that pass its date policy. Do not assume the original runner's model cap or the newer runner's date rules apply to both. See the search guide for source-specific details.
+
+## Output and Google Sheets
+
+Both workflows use the 18 columns in `config/output-columns.json`. Unknown facts and manual columns remain blank. `Max Budget (€)` is the supported maximum award per applicant/project in EUR. `Estatus` is `En curso` only when opening is confirmed; otherwise `Pendiente`. That label does not imply a closed call will reopen.
+
+- Original runner: `output/opportunities.csv` plus `opportunities.audit.csv`. `--output PATH` changes the destination; `--columns-config PATH` changes the layout.
+- Specialized runner: dated/config-specific folders under `output/multi-source/`, containing `append.csv`, raw assessments and coverage/error reports. Successful model responses are cached so retries can resume without repeating them.
+- Local exports replace their own snapshots. They do not carry forward manual edits to previous CSV files.
+- Appending to an existing Google Sheet currently uses the connected Google Drive plugin. Neither runner automatically edits a Sheet tab. Preserve existing rows and check duplicate URLs before appending.
+
+Keep output folders when audit history or cached responses are needed. They are generated artifacts, not source code.
+
+## Import website URLs from a Google Sheet
+
+Create the ignored `config/sheets.json` with the input spreadsheet URL/ID, tab and URL column:
+
+```json
+{
+  "spreadsheet": "YOUR_SPREADSHEET_URL_OR_ID",
+  "tab": "Buscadores de financiaciones",
+  "column": "A",
+  "start_row": 3,
+  "access": "public"
+}
 ```
-
-An API subscription is billed separately from a ChatGPT subscription. Never paste a key into source code or commit `.env`; use a secret manager when this is eventually hosted.
-
-## What controls the results?
-
-1. `sources.json` controls **where** Germinate searches.
-2. Each collector controls **how** a source is read.
-3. `rules.json` controls which links are followed and classifies their full page text.
-4. `prompt.md` explains what Germinate considers an acceptable grant.
-5. `schema.json` controls the exact structured output.
-6. `agent.json` controls the model, confidence cutoff, maximum pages per run, text size, output size, and timeout.
-7. `examples.jsonl` records expected decisions so tuning can be measured rather than guessed.
-
-Low-confidence model answers are changed to `review`. The rule result remains in the CSV beside the agent result so decisions are auditable. Each run **replaces** its output file with a fresh snapshot; it does not append.
-
-## How pages become CSV rows
-
-For each ordinary HTML source, Germinate:
-
-1. Opens every configured `start_url`. Start pages guide discovery but are not themselves written as opportunity rows.
-2. Follows same-site links when the link title or URL contains a grant or topic term and no rejection term.
-3. Repeats this up to the source's `max_depth` and `max_pages` limits. Imported HTML sources default to depth 2 and 30 pages; limits are configurable per source.
-4. Classifies each followed page using its link title, URL, and full visible page text.
-5. Writes a row when at least one grant, topic, or rejection term is present.
-
-There is currently **no minimum score for inclusion**. `minimum_score` only separates `candidate` from `review`:
-
-```text
-score = (2 × matched grant terms) + matched topic terms - (4 × rejection terms)
-```
-
-- `rejected`: at least one rejection term is present.
-- `candidate`: grant and topic terms are present and the score is at least `minimum_score` (currently 3).
-- `review`: some relevant terms are present, but the candidate conditions are not met.
-
-After collection, exact source/URL duplicates are removed. Interactive sources produce a `needs_specialized_collector` row instead of pretending their initial HTML is sufficient.
-
-Agent mode does not control whether a collected row is included. It analyzes only local `candidate` and `review` rows, up to `max_pages_per_run` (currently 25), and adds its assessment beside the local rule result. Agent-rejected rows therefore remain visible for auditing.
-
-## Output
-
-The original columns (`source`, `collector_type`, `title`, `url`, `decision`, `score`, matched terms, `checked_at`, and `note`) show the collector/rule result. Agent columns record whether AI was used, its decision and confidence, grant status, deadline, amount, currency, eligibility, topics, consortium requirement, and reason.
-
-`test-agent.ps1` prints the complete raw structured agent response. The live CSV currently stores only the fields represented by the `Result` record, so raw fields such as `rolling_application`, `evidence`, and the agent-extracted title are not yet copied into the CSV.
-
-## “Fine-tuning” the agent
-
-For now, tune behavior in this order:
-
-- Edit `rules.json` when pages are incorrectly included/excluded before AI.
-- Edit `prompt.md` when the model misunderstands Germinate's policy.
-- Edit `schema.json` when you need different output fields.
-- Edit thresholds and limits in `agent.json`.
-- Add real labelled cases to `evals/examples.jsonl`, then run comparisons after every change.
-
-This is **prompt/configuration tuning**, not model fine-tuning. Actual fine-tuning changes model weights using a much larger reviewed dataset and should come later, only if evals show that prompting and structured outputs are insufficient.
-
-## Is this RAG?
-
-It is **RAG-like, but not classic RAG**. The model is grounded in text retrieved from live websites, so the broad idea is similar. Classic RAG normally stores documents in a searchable index (often embeddings/vector search), retrieves the most relevant chunks for a user's question, and gives those chunks to a model.
-
-Germinate currently crawls known pages, uses rules to preselect links, and asks a model to classify/extract each page. There is no vector database, embedding search, or question-answering layer. It could become full RAG later by storing indexed opportunities and retrieving them in response to queries such as “show restoration grants open to Spanish nonprofits.”
-
-## Costs and bottlenecks
-
-- One candidate page normally means one API request, so cost and time scale with candidate count and page length.
-- `max_pages_per_run` and `max_page_characters` cap that exposure.
-- Dynamic sites need dedicated collectors; robots rules, rate limits, layout changes, PDFs, logins, and anti-bot systems can block collection.
-- Model output can still be wrong, so evidence, confidence thresholds, evals, and human review remain necessary.
-- Scheduling and hosting are separate future layers; this repository currently runs on demand.
-
-## Website keyword searches
-
-Example configuration files explain their fields in leading `//` comments. Germinate supports these header comments; strict JSON tools require removing them.
-
-Set a source's `collector_type` to `html_search` and add a `search` object; see `config/search-source.example.json`. `search.url` is the real GET form endpoint, `query_parameter` is its keyword field, `keywords` contains one phrase per search, and `parameters` contains fixed filter values (including lists for repeated checkbox parameters). These values must match the website's actual form. No model call is needed to submit a search.
-
-RED PAC is configured with its verified `title` field and initial keywords `rural`, `agricultura`, and `biodiversidad`. Edit those keywords in `config/sources.json`. Its `result_container_class` restricts discovery to the search results rather than the site's navigation; a missing container is reported as an error. Result links in that container are read even when their title is generic, then classified using full page text. An empty result area produces no opportunities.
-
-`max_pages` is now shared across all start URLs/searches for each source, including search pages; `max_depth` still controls link depth. Earlier keywords can exhaust that budget. Automatic pagination, POST forms, JavaScript-only results, login and CAPTCHA handling are not implemented by this GET collector. Those sites need dedicated adapters. Newly imported URLs default to HTML collection and need review; importing a URL does not automatically configure its search form.
-
-## Import source URLs from Google Sheets
-
-The local `config/sheets.json` is configured for **Buscadores de financiaciones**, column **A**, beginning at row **3** (below the two heading rows). The tab name was verified from the supplied Sheet. On another checkout, copy `config/sheets.example.json` to `config/sheets.json` and supply the spreadsheet URL or ID.
 
 ```powershell
-python sync_sources.py          # preview new URLs
-python sync_sources.py --apply  # merge them into config/sources.json
+python sync_sources.py          # preview
+python sync_sources.py --apply  # merge into sources.json
 ```
 
-The supplied Sheet is currently readable without signing in, so `access: "public"` uses its XLSX export directly, with no Google API key or extra Python packages. It reads hyperlink targets behind names as well as plain-text URLs, preserves labels as source names, and reports headings/cells without URLs. Only the configured tab and column are imported. The public export reader uses the tab name (not the URL's gid); update the configuration if the tab is renamed. This does not change the Sheet's sharing permissions.
+Public import reads the XLSX export, including hyperlinks behind labels. Private import uses `access: "private"` and Google Application Default Credentials, for example a service account selected by `GOOGLE_APPLICATION_CREDENTIALS`. Enable the Sheets API and share the input spreadsheet with that account as Viewer. Store credentials outside Git. The importer preserves existing source settings; it does not remove old sources or configure new search adapters automatically. It never edits the input Sheet.
 
-Imports append new URLs and preserve existing entries, search keywords, collectors and limits. Repeating a sync is safe. Deleted or changed Sheet URLs do not remove or replace previous sources automatically. Invalid linked URLs abort the import; local writes are atomic. Google Sheets itself is never edited. Updating source URLs from Sheets is separate from uploading the resulting opportunities CSV to Drive (see below).
+## Optional CSV upload to a Drive folder
 
-For a **private** Sheet, set `access` to `private`, enable the Google Sheets API in a Google Cloud project, and install optional support:
+This is separate from editing a Google Sheets tab. It creates a new dated CSV in a configured folder.
+
+1. Copy `config/drive.example.json` to the ignored `config/drive.json` and set the folder URL/ID.
+2. Enable the Drive API in a Google Cloud project. Create a Desktop OAuth client, configure its consent screen/test users as needed, and save the client file as `secrets/drive-client.json`.
+3. Run `python drive_upload.py --authorize` and sign in with an account that can add files to that folder. This requests the full Drive scope and stores the token locally.
+4. Set `enabled: true` for automatic original-runner uploads, or use an explicit command:
 
 ```powershell
-python -m pip install -r requirements-sheets.txt
-$env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\path\outside-repository\service-account.json'
-python sync_sources.py
+python germinate.py --agent --drive
+python drive_upload.py --file output/opportunities.csv
 ```
 
-Share only the required Sheet with that service account as **Viewer**. The importer requests the `spreadsheets.readonly` scope and reads hyperlink metadata through the Sheets API. Existing Application Default Credentials can also be used. Store credentials outside Git (the repository's `secrets/` folder is ignored if needed). See Google's [Sheets API authorization guide](https://developers.google.com/workspace/sheets/api/scopes). Private authentication requires your Google configuration and has not been live-tested with this public Sheet.
+Without Drive configuration, results stay local. Normal demos do not upload. Upload failures preserve the CSV and return exit code 2; check the destination before retrying after a network interruption. Plugin sign-in does not configure this separate local OAuth integration.
 
-
-## Save results to Google Drive
-
-Uploads create a dated CSV in your chosen folder. The local CSV is kept too. This does not modify the source Google Sheet or convert results to a Google Sheet.
-
-1. Install optional dependencies: `python -m pip install -r requirements-drive.txt`.
-2. Copy `config/drive.example.json` to `config/drive.json`. Paste the destination folder URL into `folder`.
-3. In Google Cloud, enable the Drive API and create an OAuth client of type **Desktop app**. Configure the consent screen and add your account as a test user if required. Save the downloaded client JSON as `secrets/drive-client.json`.
-4. Run `python drive_upload.py --authorize` and sign in with an account that can add files to the folder. This connects Google without uploading anything.
-5. Set `enabled` to `true` in `config/drive.json`. Future live runs upload the CSV automatically.
-
-This desktop integration requests the **full Drive scope** so it can use an existing folder supplied by URL without a Google Picker integration. Google's consent screen describes that access. The code checks the selected folder and creates CSV files there; it does not change sharing permissions or delete existing files. Tokens are stored in the ignored `secrets/` directory. Credentials paths are relative to the project root unless absolute. Do not commit or share credential files. Google setup follows the [official desktop OAuth guide](https://developers.google.com/workspace/drive/api/quickstart/python).
+## Development
 
 ```powershell
-.\run-live.ps1 -Drive                  # explicitly upload this run
-.\run-live.ps1 -Agent -Drive           # analyze with AI and upload
-python drive_upload.py --file output/opportunities.csv  # upload an existing result
+python -m unittest discover -s tests
 ```
 
-Normal demo runs never upload; `--demo --drive` explicitly opts into uploading demo data. Without a Drive config, live runs remain local. Upload failures return exit code 2 and preserve the local CSV. A later manual upload creates a new dated file; after a network interruption, check the folder first because Google may already have received the earlier upload. Empty results upload a header-only CSV. Crawl errors continue to be printed, so an uploaded file is not a guarantee of complete collection.
+Tests are offline and do not call the model. Use the [search guide](config/SOURCE_SEARCH_GUIDE.md) for reproducible dates, cache controls and source coverage reports. No scheduler, hosting service or model fine-tuning is configured.
 
-OAuth authorization must be completed locally before unattended runs. Testing-mode Google apps may require renewed consent when refresh tokens expire. Reading a publicly shared input Sheet does not grant permission to upload to Drive.
+Remaining work from the earlier planning notes:
+
+- Fabio: tune source filters and model policy against reviewed grant examples, including keyword false rejections.
+- Fabio: improve targeted URLs and coverage of dynamic portals and pagination.
+- Marc: measure actual API usage/cost and agree the run budget, frequency, timezone and host before scheduling.
+- Bring RED PAC into a shared run interface while preserving its own filters; implement its rolling-date policy in the normal workflow.
+- Automate duplicate-aware appends to the chosen output Sheet if recurring delivery is required.

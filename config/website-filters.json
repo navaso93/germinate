@@ -59,6 +59,166 @@
           ]
         }
       }
+    },
+    {
+      "source_name": "EU Rural Toolkit",
+      "url": "https://funding.rural-vision.europa.eu/finder?lng=en",
+      "filters": {
+        "activity_codes": {
+          "label": "Activities",
+          "type": "multiselect",
+          "config_key": "sites[id=rural_toolkit].activity_codes",
+          "options": {
+            "1": "Ageing",
+            "2": "Agriculture, farming, forestry and fishing",
+            "3": "Built environment",
+            "4": "Climate adaptation and mitigation",
+            "5": "Culture",
+            "6": "Digital",
+            "7": "Training and education",
+            "8": "Employment",
+            "9": "Energy",
+            "10": "Entrepreneurship and SMEs",
+            "11": "Environment, biodiversity and waste",
+            "12": "Gender equality",
+            "13": "Health care",
+            "14": "Integrated local development",
+            "15": "Migration",
+            "16": "Research and/or innovation",
+            "17": "Social inclusion or services",
+            "18": "Youth and sports",
+            "19": "Tourism and territorial branding",
+            "20": "Transport"
+          },
+          "empty_value": []
+        },
+        "applicant_codes": {
+          "label": "Applicant types",
+          "type": "multiselect",
+          "config_key": "sites[id=rural_toolkit].applicant_codes",
+          "options": {
+            "1": "Academic institution",
+            "2": "Association of civil society",
+            "3": "Business/SME (including farmer)",
+            "4": "Cooperative",
+            "5": "Energy community",
+            "6": "Individual citizen",
+            "7": "Local Action Group",
+            "8": "Local authority/Public entity",
+            "9": "NGO"
+          },
+          "empty_value": []
+        },
+        "support_code": {
+          "label": "Support type",
+          "type": "select",
+          "config_key": "sites[id=rural_toolkit].support_code",
+          "options": {
+            "1": "Grant"
+          }
+        }
+      },
+      "config_file": "site-searches.json"
+    },
+    {
+      "source_name": "Cascade Funding",
+      "url": "https://cascadefunding.eu/open-calls/",
+      "filters": {
+        "domains": {
+          "label": "Domains",
+          "type": "multiselect",
+          "config_key": "sites[id=cascade].domains",
+          "options": {
+            "Advanced Manufacturing and Industry": "Advanced Manufacturing and Industry",
+            "Agriculture and Food": "Agriculture and Food",
+            "Arts": "Arts",
+            "Circular Economy and Sustainability": "Circular Economy and Sustainability",
+            "Culture and Heritage": "Culture and Heritage",
+            "Digital Society and E-Inclusion": "Digital Society and E-Inclusion",
+            "Education and Training": "Education and Training",
+            "Energy and Environment": "Energy and Environment",
+            "Gender Equality and Diversity": "Gender Equality and Diversity",
+            "Information and Communication Technologies (ICT)": "Information and Communication Technologies (ICT)",
+            "Life Sciences and Health": "Life Sciences and Health",
+            "Marine and Maritime Research": "Marine and Maritime Research",
+            "Nanotechnology and Advanced Materials": "Nanotechnology and Advanced Materials",
+            "Public Policy and Governance": "Public Policy and Governance",
+            "Robotics and Automation": "Robotics and Automation",
+            "Security and Defense": "Security and Defense",
+            "Smart Cities": "Smart Cities",
+            "Social Innovation and Community Development": "Social Innovation and Community Development",
+            "Social Sciences and Humanities": "Social Sciences and Humanities",
+            "Space and Space Exploration": "Space and Space Exploration",
+            "Tourism and Cultural Heritage": "Tourism and Cultural Heritage",
+            "Transportation and Mobility": "Transportation and Mobility"
+          },
+          "empty_value": []
+        },
+        "technologies": {
+          "label": "Technologies",
+          "type": "multiselect",
+          "config_key": "sites[id=cascade].technologies",
+          "options": {
+            "AI and Big Data": "AI and Big Data",
+            "AR/VR/XR": "AR/VR/XR",
+            "Advanced Manufacturing": "Advanced Manufacturing",
+            "Digital Solutions": "Digital Solutions",
+            "Digital solutions": "Digital solutions",
+            "IoT": "IoT",
+            "Materials": "Materials",
+            "Quantum": "Quantum",
+            "Robotics": "Robotics",
+            "Security and Connectivity and Cloud": "Security and Connectivity and Cloud"
+          },
+          "empty_value": []
+        },
+        "beneficiaries": {
+          "label": "Beneficiaries",
+          "type": "multiselect",
+          "config_key": "sites[id=cascade].beneficiaries",
+          "options": {
+            "MidCaps": "MidCaps",
+            "NGOs": "NGOs",
+            "Public Authorities": "Public Authorities",
+            "SME": "SME",
+            "individuals": "individuals",
+            "large company": "large company",
+            "public authorities": "public authorities",
+            "research organisation": "research organisation",
+            "research organization": "research organization",
+            "sme": "sme",
+            "startups": "startups",
+            "university": "university"
+          },
+          "empty_value": []
+        }
+      },
+      "config_file": "site-searches.json"
+    },
+    {
+      "source_name": "IPYME",
+      "url": "https://ipyme.org/es-es/AyudasIncentivos/Paginas/buscador-de-ayudas.aspx",
+      "filters": {
+        "query": {
+          "label": "Search terms",
+          "type": "text",
+          "config_key": "sites[id=ipyme].query"
+        },
+        "only_open": {
+          "label": "Application period open",
+          "type": "boolean",
+          "config_key": "sites[id=ipyme].only_open"
+        },
+        "grant_types": {
+          "label": "Aid types containing these words",
+          "type": "multiselect",
+          "config_key": "sites[id=ipyme].grant_types",
+          "options": {
+            "subvención": "Subvención"
+          }
+        }
+      },
+      "config_file": "site-searches.json"
     }
   ]
 }

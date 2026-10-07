@@ -7,7 +7,7 @@ This guide explains the JSON files in this folder. Keys are the names on the lef
 1. `sources.json` chooses the websites and how to collect their pages.
 2. `rules.json` checks for funding words, relevant topics, and exclusion words.
 3. `agent.json` controls optional AI review. The AI selection instructions are in `agent/prompt.md`, outside this folder.
-4. Results are saved to `output/opportunities.csv`. Drive upload is optional.
+4. `output-columns.json` controls the visible columns in `output/opportunities.csv`. Drive upload is optional; raw results also stay in a local audit CSV.
 
 The intended focus is non-repayable funding for sustainability, restoration, biodiversity, agriculture, and related community work. The current word rules are only a preliminary check.
 
@@ -73,7 +73,7 @@ Purpose: control optional AI analysis of collected pages.
 - `max_output_tokens`: maximum output-token allowance per model request. Current value: `1600`.
 - `timeout_seconds`: timeout used for each API request. Current value: `60` seconds.
 
-Only rule-based `candidate` and `review` rows reach the AI. Rule-based rejections are skipped. AI results appear alongside the original rule results; they do not remove rows from the CSV.
+Only rule-based `candidate` and `review` rows reach the AI. Rule-based rejections are skipped. AI results do not remove rows from the CSV. The original rule results are kept in the separate audit CSV.
 
 ## sheets.json
 
@@ -108,10 +108,11 @@ The RED PAC 90-day count was a separate diagnostic, not an implemented live-run 
 
 ## website-filters.json
 
-Purpose: keep filter definitions for multiple websites in one file. The future UI can use these definitions to display each website's fields and options. Active selections still belong in `sources.json`; changing this reference alone does not change searches.
+Purpose: keep filter definitions for multiple websites in one file. The future UI can use these definitions to display each website's fields and options. Active selections belong in `sources.json` for RED PAC and `site-searches.json` for Rural Toolkit, Cascade and IPYME; changing this reference alone does not change searches.
 
 - `websites`: list of website definitions. Add one object for each supported website.
-- `source_name`: exact matching `name` in `sources.json`, such as `RED PAC`.
+- `source_name`: source name, such as `RED PAC`. RED PAC matches `name` in `sources.json`; the newer adapters use `name` in `site-searches.json`.
+- `config_file`: active configuration file for newer adapters. RED PAC uses `sources.json` when this field is absent.
 - `url`: the website's search address, for reference.
 - `filters`: the website's fields, keyed by their internal parameter names.
 
@@ -155,3 +156,47 @@ Each field inside a website's `filters` uses these metadata keys:
 - `query_parameter`: website field receiving each keyword.
 
 Codes were checked against https://redpac.es/buscador-ayudas on 20 September 2026. RED PAC dropdown codes are stored as strings. A future UI can match `source_name`, read that website's `filters`, and save its selected values into the matching entry in `sources.json`. No UI or automatic code validation is implemented yet.
+
+## output-columns.json
+
+Purpose: choose the columns, names, and order in the results CSV. Drive receives this same CSV.
+
+- `columns`: ordered list of visible columns.
+- `label`: column heading. Rename it without changing extraction.
+- `field`: internal fact to display. Reorder or remove an entry to change the output.
+- `blank`: always leaves a manual column empty.
+- `budget_eur`: shows the maximum award only when its currency is EUR.
+- `status`: derives the provisional application status described below.
+
+Definitions of the default columns:
+
+- **Titulo** (`title`): official grant title; uses the collected link title until the model extracts one.
+- **Entidad Financiadora** (`funder`): entity providing the funding, not the discovery website.
+- **Programa** (`program`): programme containing this grant.
+- **Nivel** (`level`): Ciudad / Regional / Nacional / EU / Global. Blank if unknown.
+- **Temas** (`topics`): sectors and themes covered.
+- **Fecha límite** (`deadline`): last application day, as YYYY-MM-DD.
+- **Frequencia** (`frequency`): explicitly stated recurrence, such as Única / Trimestral / Anual.
+- **URL (link)** (`url`): collected opportunity page.
+- **Max Budget (€)** (`budget_eur`): maximum award per applicant/project in EUR. Not the programme's total budget. Other currencies are not converted; their original values remain in the audit.
+- **Estatus** (`status`): En curso only if applications are confirmed open at analysis time and the deadline has not passed. Otherwise Pendiente, including unknown, upcoming, or closed calls. This provisional two-state label does not mean a closed call will reopen.
+- **¿Experiencia?** (`blank`): left empty for manual use.
+- **Requisitos** (`requirements`): explicitly stated eligibility/application requirements.
+- **_Documento de trabajo asociado** (`blank`): left empty for manual use.
+- **Donde encontrado / como nos enteramos?** (`blank`): left empty for manual use.
+- **Decisión IA** (`agent_decision`): accept / review / reject after the confidence threshold. Blank if AI has not analyzed the row.
+- **Publicación** (`publication_date`): publication date of this call, as YYYY-MM-DD. Never the collection date or deadline.
+- **Motivo IA** (`agent_reason`): model explanation in Spanish.
+- **Confianza** (`agent_confidence`): model-reported confidence from 0 to 1; not a calibrated probability of eligibility.
+
+Unknown facts stay empty. Missing facts are not recovered by changing column names; collecting linked official documents remains a separate improvement. The three manual columns are blank in every new export. Runs replace snapshots, so manual edits in an older CSV are not carried forward.
+
+Use `python germinate.py --columns-config path/to/columns.json` for another layout. Fields from the internal Result record can also be displayed, such as `decision` for the initial rule or `currency` for original currency. An unknown field or duplicate heading fails before collection/API calls. Adding a new extracted fact requires updating the model schema and result mapping too.
+
+Each run also saves `opportunities.audit.csv` alongside `opportunities.csv` (or the equivalent name for a custom output path). The audit keeps raw fields, original currency, and rule results. Only the presentation CSV is automatically uploaded to Drive. Existing Google Sheets tabs are not automatically migrated.
+
+**Regla inicial versus Decisión IA:** `decision` is deterministic keyword scoring (candidate / review / rejected). `agent_decision` is the model's semantic assessment (accept / review / reject), changed to review below the confidence threshold. The standard pipeline skips rule-rejected rows; the separate RED PAC test explicitly sent all retained rows to the model.
+
+## site-searches.json
+
+Active filters for EU Rural Toolkit, Cascade Funding and IPYME. See [SOURCE_SEARCH_GUIDE.md](SOURCE_SEARCH_GUIDE.md) for every key, default criteria, adapter limitations and run commands. Their readable dropdown labels are in website-filters.json. Use run_sources.py for these adapters; germinate.py retains the original sources.json workflow.

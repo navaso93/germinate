@@ -66,7 +66,8 @@ class DriveTests(unittest.TestCase):
                  patch('germinate.enrich', return_value=[]):
                 self.assertEqual(germinate.main(), 2)
             self.assertTrue(path.exists())
-            self.assertIn('title', path.read_text(encoding='utf-8-sig'))
+            self.assertIn('Titulo', path.read_text(encoding='utf-8-sig'))
+            self.assertTrue(path.with_name('out.audit.csv').exists())
 
 
 if __name__ == '__main__':

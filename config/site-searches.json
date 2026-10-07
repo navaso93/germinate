@@ -1,0 +1,94 @@
+{
+  "common": {
+    "publication_last_days": 90,
+    "missing_publication": "include_if_open",
+    "exclude_closed": true,
+    "topic_terms": [
+      "sustainab",
+      "sostenib",
+      "regenerat",
+      "regenerac",
+      "restor",
+      "restaur",
+      "ecosystem",
+      "ecosistema",
+      "biodivers",
+      "conservation",
+      "conservac",
+      "agricultur",
+      "agro",
+      "farming",
+      "food",
+      "aliment",
+      "rural",
+      "climat",
+      "forestry",
+      "forestal",
+      "bosque",
+      "soil",
+      "suelo",
+      "water",
+      "agua",
+      "circular",
+      "renewable",
+      "renovable",
+      "bioeconom",
+      "biomass",
+      "biomasa",
+      "community",
+      "comunit",
+      "local development"
+    ],
+    "max_document_bytes": 15000000,
+    "max_pdf_pages": 80,
+    "max_linked_documents": 1
+  },
+  "sites": [
+    {
+      "id": "rural_toolkit",
+      "name": "EU Rural Toolkit",
+      "url": "https://funding.rural-vision.europa.eu/finder?lng=en",
+      "activity_codes": [
+        2,
+        4,
+        9,
+        11,
+        14
+      ],
+      "applicant_codes": [],
+      "support_code": 1,
+      "max_listing_pages": 5,
+      "max_call_pages": 100,
+      "call_url_overrides": {
+        "https://interreg.eu/call-for-project/": "https://interreg.eu/calls-for-projects/"
+      }
+    },
+    {
+      "id": "cascade",
+      "name": "Cascade Funding",
+      "url": "https://cascadefunding.eu/open-calls/",
+      "call_type": "Proposals",
+      "domains": [
+        "Agriculture and Food",
+        "Circular Economy and Sustainability",
+        "Energy and Environment",
+        "Social Innovation and Community Development"
+      ],
+      "technologies": [],
+      "beneficiaries": []
+    },
+    {
+      "id": "ipyme",
+      "name": "IPYME",
+      "url": "https://ipyme.org/es-es/AyudasIncentivos/Paginas/buscador-de-ayudas.aspx",
+      "api_url": "https://wapis.ipyme.org/servicioayudas/ayudas",
+      "query": "agricultura o rural o sostenibilidad o biodiversidad o forestal o agua o clima o agrovoltaica o circular o renovable",
+      "only_open": true,
+      "grant_types": [
+        "subvención"
+      ],
+      "page_size": 50,
+      "max_listing_pages": 30
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 """OpenAI Responses API client; uses only Python's standard library."""
 import json, os
+from datetime import datetime,timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
 ROOT=Path(__file__).resolve().parents[1]
@@ -23,8 +24,8 @@ class OpenAIAgent:
         if not self.api_key: raise RuntimeError("OPENAI_API_KEY is missing. Copy .env.example to .env.")
         self.prompt=(ROOT/"agent"/"prompt.md").read_text(encoding="utf-8-sig")
         self.schema=json.loads((ROOT/"agent"/"schema.json").read_text(encoding="utf-8-sig"))
-    def analyze(self, *, source, url, page_text, preliminary):
-        content={"source":source,"url":url,"preliminary_rule_result":preliminary,"page_text":page_text[:self.config["max_page_characters"]]}
+    def analyze(self, *, source, url, page_text, preliminary, as_of_date=None):
+        content={"as_of_date":as_of_date or datetime.now(timezone.utc).date().isoformat(),"source":source,"url":url,"preliminary_rule_result":preliminary,"page_text":page_text[:self.config["max_page_characters"]]}
         payload={"model":self.config["model"],"instructions":self.prompt,"input":json.dumps(content,ensure_ascii=False),
                  "text":{"format":{"type":"json_schema","name":"grant_assessment","strict":True,"schema":self.schema}},
                  "max_output_tokens":self.config["max_output_tokens"]}
